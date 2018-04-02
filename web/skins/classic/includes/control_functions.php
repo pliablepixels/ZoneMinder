@@ -254,7 +254,7 @@ function controlPanTilt( $monitor, $cmds )
     // else JS call will fail with syntax error
     $hasPan =  $hasPan?:'0';
     $hasTilt = $hasTilt?:'0';
-    $hasDiag = $hasTilt?:'0';;
+    $hasDiag = $hasDiag?:'0';
   
     echo '<script>ptzmenu('.$hasPan.','.$hasTilt.','.$hasDiag.','.json_encode($cmds).');</script>';
 ?>
