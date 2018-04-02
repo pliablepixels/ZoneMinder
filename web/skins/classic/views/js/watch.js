@@ -1,85 +1,113 @@
-function ptzmenu(hasPan, hasTilt,hasDiag, cmds) {
+function ptzmenu(hasPan, hasTilt, hasDiag, cmds) {
+  const dirn = {
+    RIGHT: 0,
+    RIGHT_DOWN: 1,
+    DOWN: 2,
+    DOWN_LEFT: 3,
+    LEFT: 4,
+    UP_LEFT: 5,
+    UP: 6,
+    UP_RIGHT: 7
 
-    const dirn = {
-      RIGHT: 0,
-      RIGHT_DOWN: 1,
-      DOWN:2,
-      DOWN_LEFT: 3,
-      LEFT: 4,
-      UP_LEFT:5,
-      UP:6,
-      UP_RIGHT:7
-    };
-    
-		var wheel = new wheelnav("ptzNavWheel");
-		wheel.slicePathFunction = slicePath().DonutSlice;
-		wheel.spreaderEnable = true;
-		wheel.spreaderRadius = 40;
-		wheel.spreaderInTitle = 'imgsrc:skins/classic/graphics/center-white.png';
-		wheel.spreaderOutTitle = 'imgsrc:skins/classic/graphics/center-white.png';
-		wheel.clickModeRotate = false;
-		wheel.colors = ['#AAAAAA'];
-		//          r    rd    d   dl   l    ul   u   ur
-		//          0     1    2    3   4     5   6   7 
-    var opt = [null,null,null,null,null,null,null,null];
-		var imgs = [
-			"imgsrc:skins/classic/graphics/arrow-r.png",
-			"imgsrc:skins/classic/graphics/arrow-dr.png",
-			"imgsrc:skins/classic/graphics/arrow-d.png",
-			"imgsrc:skins/classic/graphics/arrow-dl.png",
-			"imgsrc:skins/classic/graphics/arrow-l.png",
-			"imgsrc:skins/classic/graphics/arrow-ul.png",
-			"imgsrc:skins/classic/graphics/arrow-u.png",
-			"imgsrc:skins/classic/graphics/arrow-ur.png"
-		];
-		if (hasPan) {  opt[dirn.RIGHT]=imgs[dirn.RIGHT]; opt[dirn.LEFT]=imgs[dirn.LEFT]; }
-		if (hasTilt){  opt[dirn.DOWN]=imgs[dirn.DOWN]; opt[dirn.UP]=imgs[dirn.UP]; }
-    if (hasDiag) {  
-        opt[dirn.RIGHT_DOWN]=imgs[dirn.RIGHT_DOWN]; 
-        opt[dirn.DOWN_LEFT]=imgs[dirn.DOWN_LEFT]; 
-        opt[dirn.UP_LEFT]=imgs[dirn.UP_LEFT]; 
-        opt[dirn.UP_RIGHT]=imgs[dirn.UP_RIGHT];
-    }
-    
-    wheel.createWheel(opt);
-    wheel.navItems[dirn.RIGHT].navigateFunction = function() {controlCmd(cmds['MoveRight'],event, 1, 0);}
-    wheel.navItems[dirn.LEFT].navigateFunction = function () {controlCmd(cmds['MoveLeft'],event, -1, 0);}
-    wheel.navItems[dirn.DOWN].navigateFunction = function () {controlCmd(cmds['MoveDown'],event, 0, 1);}
-    wheel.navItems[dirn.UP].navigateFunction = function () {controlCmd(cmds['MoveUp'],event, 0, -1);}
-    wheel.navItems[dirn.RIGHT_DOWN].navigateFunction = function () {controlCmd(cmds['MoveDownRight'],event, 1, 1);}
-    wheel.navItems[dirn.DOWN_LEFT].navigateFunction = function () {controlCmd(cmds['MoveDownLeft'],event, -1, 1);}
-    wheel.navItems[dirn.UP_LEFT].navigateFunction = function () {controlCmd(cmds['MoveUpLeft'],event, -1, -1);}
-    wheel.navItems[dirn.UP_RIGHT].navigateFunction = function () {controlCmd(cmds['MoveUpRight'],event, 1, -1);}
- 
-    // the center button is called a 'spreader' - it is used to collapse/expand the menu
-    // but we don't want that here. We need to handle both states of the button
-		var center_a = document.getElementById("wheelnav-ptzNavWheel-spreader");
-		var center_b = document.getElementById("wheelnav-ptzNavWheel-spreadertitle");
-  	center_a.onmousedown = function() {wheel.minPercent = wheel.maxPercent; controlCmd(cmds['Center']);}
-  	center_b.onmousedown = function() {wheel.minPercent = wheel.maxPercent;controlCmd(cmds['Center']);}
+  };
+
+  var wheel = new wheelnav("ptzNavWheel");
+  wheel.slicePathFunction = slicePath().DonutSlice;
+  wheel.spreaderEnable = true;
+  wheel.spreaderRadius = 40;
+  wheel.spreaderInTitle = 'imgsrc:skins/classic/graphics/center-white.png';
+  wheel.spreaderOutTitle = 'imgsrc:skins/classic/graphics/center-white.png';
+  wheel.clickModeRotate = false;
+  wheel.colors = ['#AAAAAA'];
+  //          r    rd    d   dl   l    ul   u   ur
+  //          0     1    2    3   4     5   6   7 
+  var opt = [null, null, null, null, null, null, null, null];
+  var imgs = [
+    "imgsrc:skins/classic/graphics/arrow-r.png",
+    "imgsrc:skins/classic/graphics/arrow-dr.png",
+    "imgsrc:skins/classic/graphics/arrow-d.png",
+    "imgsrc:skins/classic/graphics/arrow-dl.png",
+    "imgsrc:skins/classic/graphics/arrow-l.png",
+    "imgsrc:skins/classic/graphics/arrow-ul.png",
+    "imgsrc:skins/classic/graphics/arrow-u.png",
+    "imgsrc:skins/classic/graphics/arrow-ur.png"
+  ];
+  if (hasPan) {
+    opt[dirn.RIGHT] = imgs[dirn.RIGHT];
+    opt[dirn.LEFT] = imgs[dirn.LEFT];
+  }
+  if (hasTilt) {
+    opt[dirn.DOWN] = imgs[dirn.DOWN];
+    opt[dirn.UP] = imgs[dirn.UP];
+  }
+  if (hasDiag) {
+    opt[dirn.RIGHT_DOWN] = imgs[dirn.RIGHT_DOWN];
+    opt[dirn.DOWN_LEFT] = imgs[dirn.DOWN_LEFT];
+    opt[dirn.UP_LEFT] = imgs[dirn.UP_LEFT];
+    opt[dirn.UP_RIGHT] = imgs[dirn.UP_RIGHT];
+  }
+
+  wheel.createWheel(opt);
+  wheel.navItems[dirn.RIGHT].navigateFunction = function () {
+    controlCmd(cmds['MoveRight'], event, 1, 0);
+  }
+  wheel.navItems[dirn.LEFT].navigateFunction = function () {
+    controlCmd(cmds['MoveLeft'], event, -1, 0);
+  }
+  wheel.navItems[dirn.DOWN].navigateFunction = function () {
+    controlCmd(cmds['MoveDown'], event, 0, 1);
+  }
+  wheel.navItems[dirn.UP].navigateFunction = function () {
+    controlCmd(cmds['MoveUp'], event, 0, -1);
+  }
+  wheel.navItems[dirn.RIGHT_DOWN].navigateFunction = function () {
+    controlCmd(cmds['MoveDownRight'], event, 1, 1);
+  }
+  wheel.navItems[dirn.DOWN_LEFT].navigateFunction = function () {
+    controlCmd(cmds['MoveDownLeft'], event, -1, 1);
+  }
+  wheel.navItems[dirn.UP_LEFT].navigateFunction = function () {
+    controlCmd(cmds['MoveUpLeft'], event, -1, -1);
+  }
+  wheel.navItems[dirn.UP_RIGHT].navigateFunction = function () {
+    controlCmd(cmds['MoveUpRight'], event, 1, -1);
+  }
+
+  // the center button is called a 'spreader' - it is used to collapse/expand the menu
+  // but we don't want that here. We need to handle both states of the button
+  var center_a = document.getElementById("wheelnav-ptzNavWheel-spreader");
+  var center_b = document.getElementById("wheelnav-ptzNavWheel-spreadertitle");
+  center_a.onmousedown = function () {
+    wheel.minPercent = wheel.maxPercent;
+    controlCmd(cmds['Center']);
+  }
+  center_b.onmousedown = function () {
+    wheel.minPercent = wheel.maxPercent;
+    controlCmd(cmds['Center']);
+  }
 }
 
-function setButtonState( element, butClass ) {
+function setButtonState(element, butClass) {
   element.className = butClass;
   element.disabled = (butClass != 'inactive');
 }
 
 function showEvents() {
-  $('ptzControls').addClass( 'hidden' );
-  $('events').removeClass( 'hidden' );
-  if ( $('eventsControl') )
+  $('ptzControls').addClass('hidden');
+  $('events').removeClass('hidden');
+  if ($('eventsControl'))
     $('eventsControl').addClass('hidden');
-  if ( $('controlControl') )
+  if ($('controlControl'))
     $('controlControl').removeClass('hidden');
   showMode = "events";
 }
 
 function showPtzControls() {
-  $('events').addClass( 'hidden' );
-  $('ptzControls').removeClass( 'hidden' );
-  if ( $('eventsControl') )
+  $('events').addClass('hidden');
+  $('ptzControls').removeClass('hidden');
+  if ($('eventsControl'))
     $('eventsControl').removeClass('hidden');
-  if ( $('controlControl') )
+  if ($('controlControl'))
     $('controlControl').addClass('hidden');
   showMode = "control";
 }
@@ -89,7 +117,7 @@ function changeScale() {
   var newWidth;
   var newHeight;
   if (scale == "auto") {
-    let newSize = scaleToFit(monitorWidth, monitorHeight, $j('#liveStream'+monitorId), $j('#replayStatus'));
+    let newSize = scaleToFit(monitorWidth, monitorHeight, $j('#liveStream' + monitorId), $j('#replayStatus'));
     newWidth = newSize.width;
     newHeight = newSize.height;
     autoScale = newSize.autoScale;
@@ -99,15 +127,17 @@ function changeScale() {
     newHeight = monitorHeight * scale / SCALE_BASE;
   }
 
-  Cookie.write( 'zmWatchScale'+monitorId, scale, { duration: 10*365 } );
+  Cookie.write('zmWatchScale' + monitorId, scale, {
+    duration: 10 * 365
+  });
 
   /*Stream could be an applet so can't use moo tools*/
-  var streamImg = $('liveStream'+monitorId);
-  if ( streamImg ) {
+  var streamImg = $('liveStream' + monitorId);
+  if (streamImg) {
     streamImg.style.width = newWidth + "px";
     streamImg.style.height = newHeight + "px";
 
-    streamImg.src = streamImg.src.replace(/scale=\d+/i, 'scale='+(scale== 'auto' ? autoScale : scale));
+    streamImg.src = streamImg.src.replace(/scale=\d+/i, 'scale=' + (scale == 'auto' ? autoScale : scale));
   } else {
     console.error("No element found for liveStream.");
   }
@@ -116,169 +146,170 @@ function changeScale() {
 var alarmState = STATE_IDLE;
 var lastAlarmState = STATE_IDLE;
 
-function setAlarmState( currentAlarmState ) {
+function setAlarmState(currentAlarmState) {
   alarmState = currentAlarmState;
 
   var stateString = "Unknown";
   var stateClass = "";
-  if ( alarmState == STATE_ALARM )
+  if (alarmState == STATE_ALARM)
     stateClass = "alarm";
-  else if ( alarmState == STATE_ALERT )
+  else if (alarmState == STATE_ALERT)
     stateClass = "alert";
-  $('stateValue').set( 'text', stateStrings[alarmState] );
-  if ( stateClass )
-    $('stateValue').setProperty( 'class', stateClass );
+  $('stateValue').set('text', stateStrings[alarmState]);
+  if (stateClass)
+    $('stateValue').setProperty('class', stateClass);
   else
-    $('stateValue').removeProperty( 'class' );
+    $('stateValue').removeProperty('class');
 
-  var isAlarmed = ( alarmState == STATE_ALARM || alarmState == STATE_ALERT );
-  var wasAlarmed = ( lastAlarmState == STATE_ALARM || lastAlarmState == STATE_ALERT );
+  var isAlarmed = (alarmState == STATE_ALARM || alarmState == STATE_ALERT);
+  var wasAlarmed = (lastAlarmState == STATE_ALARM || lastAlarmState == STATE_ALERT);
 
-  var newAlarm = ( isAlarmed && !wasAlarmed );
-  var oldAlarm = ( !isAlarmed && wasAlarmed );
+  var newAlarm = (isAlarmed && !wasAlarmed);
+  var oldAlarm = (!isAlarmed && wasAlarmed);
 
-  if ( newAlarm ) {
-    if ( SOUND_ON_ALARM ) {
+  if (newAlarm) {
+    if (SOUND_ON_ALARM) {
       // Enable the alarm sound
-      if ( !canPlayPauseAudio )
-        $('alarmSound').removeClass( 'hidden' );
+      if (!canPlayPauseAudio)
+        $('alarmSound').removeClass('hidden');
       else
         $('MediaPlayer').Play();
     }
-    if ( POPUP_ON_ALARM ) {
+    if (POPUP_ON_ALARM) {
       window.focus();
     }
   }
-  if ( SOUND_ON_ALARM ) {
-    if ( oldAlarm ) {
+  if (SOUND_ON_ALARM) {
+    if (oldAlarm) {
       // Disable alarm sound
-      if ( !canPlayPauseAudio )
-        $('alarmSound').addClass( 'hidden' );
+      if (!canPlayPauseAudio)
+        $('alarmSound').addClass('hidden');
       else
         $('MediaPlayer').Stop();
     }
   }
-  if ( oldAlarm) //done with an event do a refresh
+  if (oldAlarm) //done with an event do a refresh
     eventCmdQuery();
 
   lastAlarmState = alarmState;
 }
 
-var streamCmdParms = "view=request&request=stream&connkey="+connKey;
-if ( auth_hash )
-  streamCmdParms += '&auth='+auth_hash;
-var streamCmdReq = new Request.JSON( {
-  url: monitorUrl+thisUrl,
+var streamCmdParms = "view=request&request=stream&connkey=" + connKey;
+if (auth_hash)
+  streamCmdParms += '&auth=' + auth_hash;
+var streamCmdReq = new Request.JSON({
+  url: monitorUrl + thisUrl,
   method: 'get',
   timeout: AJAX_TIMEOUT,
   link: 'chain',
   onSuccess: getStreamCmdResponse,
   onFailure: getStreamCmdFailure
-} );
+});
 var streamCmdTimer = null;
 
 var streamStatus;
 
 function getStreamCmdFailure(xhr) {
-console.log(xhr);
+  console.log(xhr);
 }
-function getStreamCmdResponse( respObj, respText ) {
+
+function getStreamCmdResponse(respObj, respText) {
   watchdogOk("stream");
-  if ( streamCmdTimer )
-    streamCmdTimer = clearTimeout( streamCmdTimer );
-  if ( respObj.result == 'Ok' ) {
+  if (streamCmdTimer)
+    streamCmdTimer = clearTimeout(streamCmdTimer);
+  if (respObj.result == 'Ok') {
     // The get status command can get backed up, in which case we won't be able to get the semaphore and will exit.
-    if ( respObj.status ) {
+    if (respObj.status) {
       streamStatus = respObj.status;
-      $('fpsValue').set( 'text', streamStatus.fps );
+      $('fpsValue').set('text', streamStatus.fps);
 
-      setAlarmState( streamStatus.state );
+      setAlarmState(streamStatus.state);
 
-      $('levelValue').set( 'text', streamStatus.level );
-      if ( streamStatus.level > 95 )
+      $('levelValue').set('text', streamStatus.level);
+      if (streamStatus.level > 95)
         $('levelValue').className = "alarm";
-      else if ( streamStatus.level > 80 )
+      else if (streamStatus.level > 80)
         $('levelValue').className = "alert";
       else
         $('levelValue').className = "ok";
 
-      var delayString = secsToTime( streamStatus.delay );
+      var delayString = secsToTime(streamStatus.delay);
 
-      if ( streamStatus.paused == true ) {
-        $('modeValue').set( 'text', "Paused" );
-        $('rate').addClass( 'hidden' );
-        $('delayValue').set( 'text', delayString );
-        $('delay').removeClass( 'hidden' );
-        $('level').removeClass( 'hidden' );
-        streamCmdPause( false );
-      } else if ( streamStatus.delayed == true ) {
-        $('modeValue').set( 'text', "Replay" );
-        $('rateValue').set( 'text', streamStatus.rate );
-        $('rate').removeClass( 'hidden' );
-        $('delayValue').set( 'text', delayString );
-        $('delay').removeClass( 'hidden' );
-        $('level').removeClass( 'hidden' );
-        if ( streamStatus.rate == 1 ) {
-          streamCmdPlay( false );
-        } else if ( streamStatus.rate > 0 ) {
-          if ( streamStatus.rate < 1 )
-            streamCmdSlowFwd( false );
+      if (streamStatus.paused == true) {
+        $('modeValue').set('text', "Paused");
+        $('rate').addClass('hidden');
+        $('delayValue').set('text', delayString);
+        $('delay').removeClass('hidden');
+        $('level').removeClass('hidden');
+        streamCmdPause(false);
+      } else if (streamStatus.delayed == true) {
+        $('modeValue').set('text', "Replay");
+        $('rateValue').set('text', streamStatus.rate);
+        $('rate').removeClass('hidden');
+        $('delayValue').set('text', delayString);
+        $('delay').removeClass('hidden');
+        $('level').removeClass('hidden');
+        if (streamStatus.rate == 1) {
+          streamCmdPlay(false);
+        } else if (streamStatus.rate > 0) {
+          if (streamStatus.rate < 1)
+            streamCmdSlowFwd(false);
           else
-            streamCmdFastFwd( false );
+            streamCmdFastFwd(false);
         } else {
-          if ( streamStatus.rate > -1 )
-            streamCmdSlowRev( false );
+          if (streamStatus.rate > -1)
+            streamCmdSlowRev(false);
           else
-            streamCmdFastRev( false );
+            streamCmdFastRev(false);
         } // rate
       } else {
-        $('modeValue').set( 'text', "Live" );
-        $('rate').addClass( 'hidden' );
-        $('delay').addClass( 'hidden' );
-        $('level').addClass( 'hidden' );
-        streamCmdPlay( false );
+        $('modeValue').set('text', "Live");
+        $('rate').addClass('hidden');
+        $('delay').addClass('hidden');
+        $('level').addClass('hidden');
+        streamCmdPlay(false);
       } // end if paused or delayed
 
-      $('zoomValue').set( 'text', streamStatus.zoom );
-      if ( streamStatus.zoom == "1.0" )
-        setButtonState( $('zoomOutBtn'), 'unavail' );
+      $('zoomValue').set('text', streamStatus.zoom);
+      if (streamStatus.zoom == "1.0")
+        setButtonState($('zoomOutBtn'), 'unavail');
       else
-        setButtonState( $('zoomOutBtn'), 'inactive' );
+        setButtonState($('zoomOutBtn'), 'inactive');
 
-      if ( canEditMonitors ) {
-        if ( streamStatus.enabled ) {
-          $('enableAlarmsLink').addClass( 'hidden' );
-          $('disableAlarmsLink').removeClass( 'hidden' );
-          if ( streamStatus.forced ) {
-            $('forceAlarmLink').addClass( 'hidden' );
-            $('cancelAlarmLink').removeClass( 'hidden' );
+      if (canEditMonitors) {
+        if (streamStatus.enabled) {
+          $('enableAlarmsLink').addClass('hidden');
+          $('disableAlarmsLink').removeClass('hidden');
+          if (streamStatus.forced) {
+            $('forceAlarmLink').addClass('hidden');
+            $('cancelAlarmLink').removeClass('hidden');
           } else {
-            $('forceAlarmLink').removeClass( 'hidden' );
-            $('cancelAlarmLink').addClass( 'hidden' );
+            $('forceAlarmLink').removeClass('hidden');
+            $('cancelAlarmLink').addClass('hidden');
           }
-          $('forceCancelAlarm').removeClass( 'hidden' );
+          $('forceCancelAlarm').removeClass('hidden');
         } else {
-          $('enableAlarmsLink').removeClass( 'hidden' );
-          $('disableAlarmsLink').addClass( 'hidden' );
-          $('forceCancelAlarm').addClass( 'hidden' );
+          $('enableAlarmsLink').removeClass('hidden');
+          $('disableAlarmsLink').addClass('hidden');
+          $('forceCancelAlarm').addClass('hidden');
         }
-        $('enableDisableAlarms').removeClass( 'hidden' );
+        $('enableDisableAlarms').removeClass('hidden');
       } // end if canEditMonitors
 
-      if ( streamStatus.auth ) {
+      if (streamStatus.auth) {
         console.log("Haev a new auth hash" + streamStatus.auth);
         // Try to reload the image stream.
         var streamImg = $('liveStream');
-        if ( streamImg )
-          streamImg.src = streamImg.src.replace( /auth=\w+/i, 'auth='+streamStatus.auth );
+        if (streamImg)
+          streamImg.src = streamImg.src.replace(/auth=\w+/i, 'auth=' + streamStatus.auth);
       } // end if haev a new auth hash
     } // end if respObj.status
   } else {
-    checkStreamForErrors("getStreamCmdResponse",respObj);//log them
+    checkStreamForErrors("getStreamCmdResponse", respObj); //log them
     // Try to reload the image stream.
-    var streamImg = $('liveStream'+monitorId);
-    if ( streamImg ) {
-      streamImg.src = streamImg.src.replace(/rand=\d+/i,'rand='+Math.floor((Math.random() * 1000000) ));
+    var streamImg = $('liveStream' + monitorId);
+    if (streamImg) {
+      streamImg.src = streamImg.src.replace(/rand=\d+/i, 'rand=' + Math.floor((Math.random() * 1000000)));
       console.log("Changing livestream src to " + streamImg.src);
     } else {
       console.log("Unable to find streamImg liveStream");
@@ -286,193 +317,200 @@ function getStreamCmdResponse( respObj, respText ) {
   }
 
   var streamCmdTimeout = statusRefreshTimeout;
-  if ( alarmState == STATE_ALARM || alarmState == STATE_ALERT )
-    streamCmdTimeout = streamCmdTimeout/5;
-  streamCmdTimer = streamCmdQuery.delay( streamCmdTimeout );
+  if (alarmState == STATE_ALARM || alarmState == STATE_ALERT)
+    streamCmdTimeout = streamCmdTimeout / 5;
+  streamCmdTimer = streamCmdQuery.delay(streamCmdTimeout);
 }
 
-function streamCmdPause( action ) {
-  setButtonState( $('pauseBtn'), 'active' );
-  setButtonState( $('playBtn'), 'inactive' );
-  setButtonState( $('stopBtn'), 'inactive' );
-  setButtonState( $('fastFwdBtn'), 'inactive' );
-  setButtonState( $('slowFwdBtn'), 'inactive' );
-  setButtonState( $('slowRevBtn'), 'inactive' );
-  setButtonState( $('fastRevBtn'), 'inactive' );
-  if ( action )
-    streamCmdReq.send( streamCmdParms+"&command="+CMD_PAUSE );
+function streamCmdPause(action) {
+  setButtonState($('pauseBtn'), 'active');
+  setButtonState($('playBtn'), 'inactive');
+  setButtonState($('stopBtn'), 'inactive');
+  setButtonState($('fastFwdBtn'), 'inactive');
+  setButtonState($('slowFwdBtn'), 'inactive');
+  setButtonState($('slowRevBtn'), 'inactive');
+  setButtonState($('fastRevBtn'), 'inactive');
+  if (action)
+    streamCmdReq.send(streamCmdParms + "&command=" + CMD_PAUSE);
 }
 
-function streamCmdPlay( action ) {
-  setButtonState( $('pauseBtn'), 'inactive' );
-  setButtonState( $('playBtn'), 'active' );
-  if ( streamStatus.delayed == true ) {
-    setButtonState( $('stopBtn'), 'inactive' );
-    setButtonState( $('fastFwdBtn'), 'inactive' );
-    setButtonState( $('slowFwdBtn'), 'inactive' );
-    setButtonState( $('slowRevBtn'), 'inactive' );
-    setButtonState( $('fastRevBtn'), 'inactive' );
+function streamCmdPlay(action) {
+  setButtonState($('pauseBtn'), 'inactive');
+  setButtonState($('playBtn'), 'active');
+  if (streamStatus.delayed == true) {
+    setButtonState($('stopBtn'), 'inactive');
+    setButtonState($('fastFwdBtn'), 'inactive');
+    setButtonState($('slowFwdBtn'), 'inactive');
+    setButtonState($('slowRevBtn'), 'inactive');
+    setButtonState($('fastRevBtn'), 'inactive');
   } else {
-    setButtonState( $('stopBtn'), 'unavail' );
-    setButtonState( $('fastFwdBtn'), 'unavail' );
-    setButtonState( $('slowFwdBtn'), 'unavail' );
-    setButtonState( $('slowRevBtn'), 'unavail' );
-    setButtonState( $('fastRevBtn'), 'unavail' );
+    setButtonState($('stopBtn'), 'unavail');
+    setButtonState($('fastFwdBtn'), 'unavail');
+    setButtonState($('slowFwdBtn'), 'unavail');
+    setButtonState($('slowRevBtn'), 'unavail');
+    setButtonState($('fastRevBtn'), 'unavail');
   }
-  if ( action )
-    streamCmdReq.send( streamCmdParms+"&command="+CMD_PLAY );
+  if (action)
+    streamCmdReq.send(streamCmdParms + "&command=" + CMD_PLAY);
 }
 
-function streamCmdStop( action ) {
-  setButtonState( $('pauseBtn'), 'inactive' );
-  setButtonState( $('playBtn'), 'unavail' );
-  setButtonState( $('stopBtn'), 'active' );
-  setButtonState( $('fastFwdBtn'), 'unavail' );
-  setButtonState( $('slowFwdBtn'), 'unavail' );
-  setButtonState( $('slowRevBtn'), 'unavail' );
-  setButtonState( $('fastRevBtn'), 'unavail' );
-  if ( action )
-    streamCmdReq.send( streamCmdParms+"&command="+CMD_STOP );
-  setButtonState( $('stopBtn'), 'unavail' );
-  setButtonState( $('playBtn'), 'active' );
+function streamCmdStop(action) {
+  setButtonState($('pauseBtn'), 'inactive');
+  setButtonState($('playBtn'), 'unavail');
+  setButtonState($('stopBtn'), 'active');
+  setButtonState($('fastFwdBtn'), 'unavail');
+  setButtonState($('slowFwdBtn'), 'unavail');
+  setButtonState($('slowRevBtn'), 'unavail');
+  setButtonState($('fastRevBtn'), 'unavail');
+  if (action)
+    streamCmdReq.send(streamCmdParms + "&command=" + CMD_STOP);
+  setButtonState($('stopBtn'), 'unavail');
+  setButtonState($('playBtn'), 'active');
 }
 
-function streamCmdFastFwd( action ) {
-  setButtonState( $('pauseBtn'), 'inactive' );
-  setButtonState( $('playBtn'), 'inactive' );
-  setButtonState( $('stopBtn'), 'inactive' );
-  setButtonState( $('fastFwdBtn'), 'inactive' );
-  setButtonState( $('slowFwdBtn'), 'inactive' );
-  setButtonState( $('slowRevBtn'), 'inactive' );
-  setButtonState( $('fastRevBtn'), 'inactive' );
-  if ( action )
-    streamCmdReq.send( streamCmdParms+"&command="+CMD_FASTFWD );
+function streamCmdFastFwd(action) {
+  setButtonState($('pauseBtn'), 'inactive');
+  setButtonState($('playBtn'), 'inactive');
+  setButtonState($('stopBtn'), 'inactive');
+  setButtonState($('fastFwdBtn'), 'inactive');
+  setButtonState($('slowFwdBtn'), 'inactive');
+  setButtonState($('slowRevBtn'), 'inactive');
+  setButtonState($('fastRevBtn'), 'inactive');
+  if (action)
+    streamCmdReq.send(streamCmdParms + "&command=" + CMD_FASTFWD);
 }
 
-function streamCmdSlowFwd( action ) {
-  setButtonState( $('pauseBtn'), 'inactive' );
-  setButtonState( $('playBtn'), 'inactive' );
-  setButtonState( $('stopBtn'), 'inactive' );
-  setButtonState( $('fastFwdBtn'), 'inactive' );
-  setButtonState( $('slowFwdBtn'), 'active' );
-  setButtonState( $('slowRevBtn'), 'inactive' );
-  setButtonState( $('fastRevBtn'), 'inactive' );
-  if ( action )
-    streamCmdReq.send( streamCmdParms+"&command="+CMD_SLOWFWD );
-  setButtonState( $('pauseBtn'), 'active' );
-  setButtonState( $('slowFwdBtn'), 'inactive' );
+function streamCmdSlowFwd(action) {
+  setButtonState($('pauseBtn'), 'inactive');
+  setButtonState($('playBtn'), 'inactive');
+  setButtonState($('stopBtn'), 'inactive');
+  setButtonState($('fastFwdBtn'), 'inactive');
+  setButtonState($('slowFwdBtn'), 'active');
+  setButtonState($('slowRevBtn'), 'inactive');
+  setButtonState($('fastRevBtn'), 'inactive');
+  if (action)
+    streamCmdReq.send(streamCmdParms + "&command=" + CMD_SLOWFWD);
+  setButtonState($('pauseBtn'), 'active');
+  setButtonState($('slowFwdBtn'), 'inactive');
 }
 
-function streamCmdSlowRev( action ) {
-  setButtonState( $('pauseBtn'), 'inactive' );
-  setButtonState( $('playBtn'), 'inactive' );
-  setButtonState( $('stopBtn'), 'inactive' );
-  setButtonState( $('fastFwdBtn'), 'inactive' );
-  setButtonState( $('slowFwdBtn'), 'inactive' );
-  setButtonState( $('slowRevBtn'), 'active' );
-  setButtonState( $('fastRevBtn'), 'inactive' );
-  if ( action )
-    streamCmdReq.send( streamCmdParms+"&command="+CMD_SLOWREV );
-  setButtonState( $('pauseBtn'), 'active' );
-  setButtonState( $('slowRevBtn'), 'inactive' );
+function streamCmdSlowRev(action) {
+  setButtonState($('pauseBtn'), 'inactive');
+  setButtonState($('playBtn'), 'inactive');
+  setButtonState($('stopBtn'), 'inactive');
+  setButtonState($('fastFwdBtn'), 'inactive');
+  setButtonState($('slowFwdBtn'), 'inactive');
+  setButtonState($('slowRevBtn'), 'active');
+  setButtonState($('fastRevBtn'), 'inactive');
+  if (action)
+    streamCmdReq.send(streamCmdParms + "&command=" + CMD_SLOWREV);
+  setButtonState($('pauseBtn'), 'active');
+  setButtonState($('slowRevBtn'), 'inactive');
 }
 
-function streamCmdFastRev( action ) {
-  setButtonState( $('pauseBtn'), 'inactive' );
-  setButtonState( $('playBtn'), 'inactive' );
-  setButtonState( $('stopBtn'), 'inactive' );
-  setButtonState( $('fastFwdBtn'), 'inactive' );
-  setButtonState( $('slowFwdBtn'), 'inactive' );
-  setButtonState( $('slowRevBtn'), 'inactive' );
-  setButtonState( $('fastRevBtn'), 'inactive' );
-  if ( action )
-    streamCmdReq.send( streamCmdParms+"&command="+CMD_FASTREV );
+function streamCmdFastRev(action) {
+  setButtonState($('pauseBtn'), 'inactive');
+  setButtonState($('playBtn'), 'inactive');
+  setButtonState($('stopBtn'), 'inactive');
+  setButtonState($('fastFwdBtn'), 'inactive');
+  setButtonState($('slowFwdBtn'), 'inactive');
+  setButtonState($('slowRevBtn'), 'inactive');
+  setButtonState($('fastRevBtn'), 'inactive');
+  if (action)
+    streamCmdReq.send(streamCmdParms + "&command=" + CMD_FASTREV);
 }
 
-function streamCmdZoomIn( x, y ) {
-  streamCmdReq.send( streamCmdParms+"&command="+CMD_ZOOMIN+"&x="+x+"&y="+y );
+function streamCmdZoomIn(x, y) {
+  streamCmdReq.send(streamCmdParms + "&command=" + CMD_ZOOMIN + "&x=" + x + "&y=" + y);
 }
 
 function streamCmdZoomOut() {
-  streamCmdReq.send( streamCmdParms+"&command="+CMD_ZOOMOUT );
+  streamCmdReq.send(streamCmdParms + "&command=" + CMD_ZOOMOUT);
 }
 
-function streamCmdScale( scale ) {
-  streamCmdReq.send( streamCmdParms+"&command="+CMD_SCALE+"&scale="+scale );
+function streamCmdScale(scale) {
+  streamCmdReq.send(streamCmdParms + "&command=" + CMD_SCALE + "&scale=" + scale);
 }
 
-function streamCmdPan( x, y ) {
-  streamCmdReq.send( streamCmdParms+"&command="+CMD_PAN+"&x="+x+"&y="+y );
+function streamCmdPan(x, y) {
+  streamCmdReq.send(streamCmdParms + "&command=" + CMD_PAN + "&x=" + x + "&y=" + y);
 }
 
 function streamCmdQuery() {
-  streamCmdReq.send( streamCmdParms+"&command="+CMD_QUERY );
+  streamCmdReq.send(streamCmdParms + "&command=" + CMD_QUERY);
 }
 
-var statusCmdParms = "view=request&request=status&entity=monitor&id="+monitorId+"&element[]=Status&element[]=FrameRate";
-if ( auth_hash )
-  statusCmdParms += '&auth='+auth_hash;
-var statusCmdReq = new Request.JSON( { url: monitorUrl+thisUrl, method: 'get', data: statusCmdParms, timeout: AJAX_TIMEOUT, link: 'cancel', onSuccess: getStatusCmdResponse } );
+var statusCmdParms = "view=request&request=status&entity=monitor&id=" + monitorId + "&element[]=Status&element[]=FrameRate";
+if (auth_hash)
+  statusCmdParms += '&auth=' + auth_hash;
+var statusCmdReq = new Request.JSON({
+  url: monitorUrl + thisUrl,
+  method: 'get',
+  data: statusCmdParms,
+  timeout: AJAX_TIMEOUT,
+  link: 'cancel',
+  onSuccess: getStatusCmdResponse
+});
 var statusCmdTimer = null;
 
-function getStatusCmdResponse( respObj, respText ) {
+function getStatusCmdResponse(respObj, respText) {
   watchdogOk("status");
-  if ( statusCmdTimer )
-    statusCmdTimer = clearTimeout( statusCmdTimer );
+  if (statusCmdTimer)
+    statusCmdTimer = clearTimeout(statusCmdTimer);
 
-  if ( respObj.result == 'Ok' ) {
-    $('fpsValue').set( 'text', respObj.monitor.FrameRate );
-    setAlarmState( respObj.monitor.Status );
+  if (respObj.result == 'Ok') {
+    $('fpsValue').set('text', respObj.monitor.FrameRate);
+    setAlarmState(respObj.monitor.Status);
   } else
     checkStreamForErrors("getStatusCmdResponse", respObj);
 
   var statusCmdTimeout = statusRefreshTimeout;
-  if ( alarmState == STATE_ALARM || alarmState == STATE_ALERT )
-    statusCmdTimeout = statusCmdTimeout/5;
-  statusCmdTimer = statusCmdQuery.delay( statusCmdTimeout );
+  if (alarmState == STATE_ALARM || alarmState == STATE_ALERT)
+    statusCmdTimeout = statusCmdTimeout / 5;
+  statusCmdTimer = statusCmdQuery.delay(statusCmdTimeout);
 }
 
 function statusCmdQuery() {
   statusCmdReq.send();
 }
 
-var alarmCmdParms = "view=request&request=alarm&id="+monitorId;
-if ( auth_hash )
-  alarmCmdParms += '&auth='+auth_hash;
-var alarmCmdReq = new Request.JSON( {
-  url: monitorUrl+thisUrl,
+var alarmCmdParms = "view=request&request=alarm&id=" + monitorId;
+if (auth_hash)
+  alarmCmdParms += '&auth=' + auth_hash;
+var alarmCmdReq = new Request.JSON({
+  url: monitorUrl + thisUrl,
   method: 'post',
   timeout: AJAX_TIMEOUT,
   link: 'cancel',
   onSuccess: getAlarmCmdResponse,
   onTimeout: streamCmdQuery
-} );
+});
 var alarmCmdFirst = true;
 
-function getAlarmCmdResponse( respObj, respText ) {
+function getAlarmCmdResponse(respObj, respText) {
   checkStreamForErrors("getAlarmCmdResponse", respObj);
 }
 
 function cmdDisableAlarms() {
-  alarmCmdReq.send( alarmCmdParms+"&command=disableAlarms" );
+  alarmCmdReq.send(alarmCmdParms + "&command=disableAlarms");
 }
 
 function cmdEnableAlarms() {
-  alarmCmdReq.send( alarmCmdParms+"&command=enableAlarms" );
+  alarmCmdReq.send(alarmCmdParms + "&command=enableAlarms");
 }
 
 function cmdForceAlarm() {
-  alarmCmdReq.send( alarmCmdParms+"&command=forceAlarm" );
+  alarmCmdReq.send(alarmCmdParms + "&command=forceAlarm");
 }
 
 function cmdCancelForcedAlarm() {
-  alarmCmdReq.send( alarmCmdParms+"&command=cancelForcedAlarm" );
+  alarmCmdReq.send(alarmCmdParms + "&command=cancelForcedAlarm");
   return false;
 }
 
-function getActResponse( respObj, respText ) {
-  if ( respObj.result == 'Ok' ) {
-    if ( respObj.refreshParent ) {
+function getActResponse(respObj, respText) {
+  if (respObj.result == 'Ok') {
+    if (respObj.refreshParent) {
       console.log('refreshing');
       window.opener.location.reload();
     }
@@ -480,138 +518,206 @@ function getActResponse( respObj, respText ) {
   eventCmdQuery();
 }
 
-function deleteEvent( event, eventId ) {
-  var actParms = "view=request&request=event&action=delete&id="+eventId;
-  var actReq = new Request.JSON( { url: thisUrl, method: 'post', timeout: 3000, data: actParms, onSuccess: getActResponse } );
+function deleteEvent(event, eventId) {
+  var actParms = "view=request&request=event&action=delete&id=" + eventId;
+  var actReq = new Request.JSON({
+    url: thisUrl,
+    method: 'post',
+    timeout: 3000,
+    data: actParms,
+    onSuccess: getActResponse
+  });
   actReq.send();
   event.stop();
 }
 
-var eventCmdParms = "view=request&request=status&entity=events&id="+monitorId+"&count="+maxDisplayEvents+"&sort=Id%20desc";
-if ( auth_hash )
-  eventCmdParms += '&auth='+auth_hash;
-var eventCmdReq = new Request.JSON( { url: thisUrl, method: 'post', timeout: AJAX_TIMEOUT, data: eventCmdParms, link: 'cancel', onSuccess: getEventCmdResponse, onTimeout: eventCmdQuery } );
+var eventCmdParms = "view=request&request=status&entity=events&id=" + monitorId + "&count=" + maxDisplayEvents + "&sort=Id%20desc";
+if (auth_hash)
+  eventCmdParms += '&auth=' + auth_hash;
+var eventCmdReq = new Request.JSON({
+  url: thisUrl,
+  method: 'post',
+  timeout: AJAX_TIMEOUT,
+  data: eventCmdParms,
+  link: 'cancel',
+  onSuccess: getEventCmdResponse,
+  onTimeout: eventCmdQuery
+});
 var eventCmdTimer = null;
 var eventCmdFirst = true;
 
-function highlightRow( row ) {
-  $(row).toggleClass( 'highlight' );
+function highlightRow(row) {
+  $(row).toggleClass('highlight');
 }
 
-function getEventCmdResponse( respObj, respText ) {
+function getEventCmdResponse(respObj, respText) {
   watchdogOk("event");
-  if ( eventCmdTimer )
-    eventCmdTimer = clearTimeout( eventCmdTimer );
+  if (eventCmdTimer)
+    eventCmdTimer = clearTimeout(eventCmdTimer);
 
-  if ( respObj.result == 'Ok' ) {
+  if (respObj.result == 'Ok') {
     var dbEvents = respObj.events.reverse();
     var eventList = $('eventList');
-    var eventListBody = $(eventList).getElement( 'tbody' );
-    var eventListRows = $(eventListBody).getElements( 'tr' );
+    var eventListBody = $(eventList).getElement('tbody');
+    var eventListRows = $(eventListBody).getElements('tr');
 
-    eventListRows.each( function( row ) { row.removeClass( 'updated' ); } );
+    eventListRows.each(function (row) {
+      row.removeClass('updated');
+    });
 
-    for ( var i = 0; i < dbEvents.length; i++ ) {
+    for (var i = 0; i < dbEvents.length; i++) {
       var event = dbEvents[i];
-      var row = $('event'+event.Id);
+      var row = $('event' + event.Id);
       var newEvent = (row == null ? true : false);
-      if ( newEvent ) {
-        row = new Element( 'tr', { 'id': 'event'+event.Id } );
-        new Element( 'td', { 'class': 'colId' } ).inject( row );
-        new Element( 'td', { 'class': 'colName' } ).inject( row );
-        new Element( 'td', { 'class': 'colTime' } ).inject( row );
-        new Element( 'td', { 'class': 'colSecs' } ).inject( row );
-        new Element( 'td', { 'class': 'colFrames' } ).inject( row );
-        new Element( 'td', { 'class': 'colScore' } ).inject( row );
-        new Element( 'td', { 'class': 'colDelete' } ).inject( row );
+      if (newEvent) {
+        row = new Element('tr', {
+          'id': 'event' + event.Id
+        });
+        new Element('td', {
+          'class': 'colId'
+        }).inject(row);
+        new Element('td', {
+          'class': 'colName'
+        }).inject(row);
+        new Element('td', {
+          'class': 'colTime'
+        }).inject(row);
+        new Element('td', {
+          'class': 'colSecs'
+        }).inject(row);
+        new Element('td', {
+          'class': 'colFrames'
+        }).inject(row);
+        new Element('td', {
+          'class': 'colScore'
+        }).inject(row);
+        new Element('td', {
+          'class': 'colDelete'
+        }).inject(row);
 
-        var cells = row.getElements( 'td' );
+        var cells = row.getElements('td');
 
-        var link = new Element( 'a', { 'href': '#', 'events': { 'click': createEventPopup.pass( [ event.Id, '&trms=1&attr1=MonitorId&op1=%3d&val1='+monitorId+'&page=1&popup=1', event.Width, event.Height ] ) } });
-        link.set( 'text', event.Id );
-        link.inject( row.getElement( 'td.colId' ) );
+        var link = new Element('a', {
+          'href': '#',
+          'events': {
+            'click': createEventPopup.pass([event.Id, '&trms=1&attr1=MonitorId&op1=%3d&val1=' + monitorId + '&page=1&popup=1', event.Width, event.Height])
+          }
+        });
+        link.set('text', event.Id);
+        link.inject(row.getElement('td.colId'));
 
-        link = new Element( 'a', { 'href': '#', 'events': { 'click': createEventPopup.pass( [ event.Id, '&trms=1&attr1=MonitorId&op1=%3d&val1='+monitorId+'&page=1&popup=1', event.Width, event.Height ] ) } });
-        link.set( 'text', event.Name );
-        link.inject( row.getElement( 'td.colName' ) );
+        link = new Element('a', {
+          'href': '#',
+          'events': {
+            'click': createEventPopup.pass([event.Id, '&trms=1&attr1=MonitorId&op1=%3d&val1=' + monitorId + '&page=1&popup=1', event.Width, event.Height])
+          }
+        });
+        link.set('text', event.Name);
+        link.inject(row.getElement('td.colName'));
 
-        row.getElement( 'td.colTime' ).set( 'text', event.StartTime );
-        row.getElement( 'td.colSecs' ).set( 'text', event.Length );
+        row.getElement('td.colTime').set('text', event.StartTime);
+        row.getElement('td.colSecs').set('text', event.Length);
 
-        link = new Element( 'a', { 'href': '#', 'events': { 'click': createFramesPopup.pass( [ event.Id, event.Width, event.Height ] ) } });
-        link.set( 'text', event.Frames+'/'+event.AlarmFrames );
-        link.inject( row.getElement( 'td.colFrames' ) );
+        link = new Element('a', {
+          'href': '#',
+          'events': {
+            'click': createFramesPopup.pass([event.Id, event.Width, event.Height])
+          }
+        });
+        link.set('text', event.Frames + '/' + event.AlarmFrames);
+        link.inject(row.getElement('td.colFrames'));
 
-        link = new Element( 'a', { 'href': '#', 'events': { 'click': createFramePopup.pass( [ event.Id, '0', event.Width, event.Height ] ) } });
-        link.set( 'text', event.AvgScore+'/'+event.MaxScore );
-        link.inject( row.getElement( 'td.colScore' ) );
+        link = new Element('a', {
+          'href': '#',
+          'events': {
+            'click': createFramePopup.pass([event.Id, '0', event.Width, event.Height])
+          }
+        });
+        link.set('text', event.AvgScore + '/' + event.MaxScore);
+        link.inject(row.getElement('td.colScore'));
 
-        link = new Element( 'a', { 'href': '#', 'title': deleteString, 'events': { 'click': function( e ) { deleteEvent( e, event.Id ); }.bind( link ), 'mouseover': highlightRow.pass( row ), 'mouseout': highlightRow.pass( row ) } });
-        link.set( 'text', 'X' );
-        link.inject( row.getElement( 'td.colDelete' ) );
+        link = new Element('a', {
+          'href': '#',
+          'title': deleteString,
+          'events': {
+            'click': function (e) {
+              deleteEvent(e, event.Id);
+            }.bind(link),
+            'mouseover': highlightRow.pass(row),
+            'mouseout': highlightRow.pass(row)
+          }
+        });
+        link.set('text', 'X');
+        link.inject(row.getElement('td.colDelete'));
 
-        if ( i == 0 )
-          row.inject( $(eventListBody) );
+        if (i == 0)
+          row.inject($(eventListBody));
         else {
-          row.inject( $(eventListBody), 'top' );
-          if ( !eventCmdFirst )
-            row.addClass( 'recent' );
+          row.inject($(eventListBody), 'top');
+          if (!eventCmdFirst)
+            row.addClass('recent');
         }
       } else {
-        row.getElement( 'td.colName a' ).set( 'text', event.Name );
-        row.getElement( 'td.colSecs' ).set( 'text', event.Length );
-        row.getElement( 'td.colFrames a' ).set( 'text', event.Frames+'/'+event.AlarmFrames );
-        row.getElement( 'td.colScore a' ).set( 'text', event.AvgScore+'/'+event.MaxScore );
-        row.removeClass( 'recent' );
+        row.getElement('td.colName a').set('text', event.Name);
+        row.getElement('td.colSecs').set('text', event.Length);
+        row.getElement('td.colFrames a').set('text', event.Frames + '/' + event.AlarmFrames);
+        row.getElement('td.colScore a').set('text', event.AvgScore + '/' + event.MaxScore);
+        row.removeClass('recent');
       }
-      row.addClass( 'updated' );
+      row.addClass('updated');
     }
 
-    var rows = $(eventListBody).getElements( 'tr' );
-    for ( var i = 0; i < rows.length; i++ ) {
-      if ( !rows[i].hasClass( 'updated' ) ) {
+    var rows = $(eventListBody).getElements('tr');
+    for (var i = 0; i < rows.length; i++) {
+      if (!rows[i].hasClass('updated')) {
         rows[i].destroy();
-        rows.splice( i, 1 );
+        rows.splice(i, 1);
         i--;
       }
     }
-    while ( rows.length > maxDisplayEvents ) {
-      rows[rows.length-1].destroy();
+    while (rows.length > maxDisplayEvents) {
+      rows[rows.length - 1].destroy();
       rows.length--;
     }
   } else
     checkStreamForErrors("getEventCmdResponse", respObj);
 
   var eventCmdTimeout = eventsRefreshTimeout;
-  if ( alarmState == STATE_ALARM || alarmState == STATE_ALERT )
-    eventCmdTimeout = eventCmdTimeout/5;
-  eventCmdTimer = eventCmdQuery.delay( eventCmdTimeout );
+  if (alarmState == STATE_ALARM || alarmState == STATE_ALERT)
+    eventCmdTimeout = eventCmdTimeout / 5;
+  eventCmdTimer = eventCmdQuery.delay(eventCmdTimeout);
   eventCmdFirst = false;
 }
 
 function eventCmdQuery() {
-  if ( eventCmdTimer ) //avoid firing another if we are firing one
-    eventCmdTimer = clearTimeout( eventCmdTimer );
+  if (eventCmdTimer) //avoid firing another if we are firing one
+    eventCmdTimer = clearTimeout(eventCmdTimer);
   eventCmdReq.send();
 }
 
-var controlParms = "view=request&request=control&id="+monitorId;
-if ( auth_hash )
-  controlParms += '&auth='+auth_hash;
-var controlReq = new Request.JSON( { url: thisUrl, method: 'post', timeout: AJAX_TIMEOUT, link: 'cancel', onSuccess: getControlResponse } );
+var controlParms = "view=request&request=control&id=" + monitorId;
+if (auth_hash)
+  controlParms += '&auth=' + auth_hash;
+var controlReq = new Request.JSON({
+  url: thisUrl,
+  method: 'post',
+  timeout: AJAX_TIMEOUT,
+  link: 'cancel',
+  onSuccess: getControlResponse
+});
 
-function getControlResponse( respObj, respText ) {
-  if ( !respObj )
+function getControlResponse(respObj, respText) {
+  if (!respObj)
     return;
   //console.log( respText );
-  if ( respObj.result != 'Ok' ) {
-    alert( "Control response was status = "+respObj.status+"\nmessage = "+respObj.message );
+  if (respObj.result != 'Ok') {
+    alert("Control response was status = " + respObj.status + "\nmessage = " + respObj.message);
   }
 }
 
-function controlCmd( control, event, xtell, ytell ) {
+function controlCmd(control, event, xtell, ytell) {
   var locParms = "";
-  if ( event && (xtell || ytell) ) {
+  if (event && (xtell || ytell)) {
     console.log(event);
     var target = event.target;
     var coords = $(target).getCoordinates();
@@ -619,67 +725,67 @@ function controlCmd( control, event, xtell, ytell ) {
     var x = event.pageX - coords.left;
     var y = event.pageY - coords.top;
 
-    if ( xtell ) {
-      var xge = parseInt( (x*100)/coords.width );
-      if ( xtell == -1 )
+    if (xtell) {
+      var xge = parseInt((x * 100) / coords.width);
+      if (xtell == -1)
         xge = 100 - xge;
-      else if ( xtell == 2 )
-        xge = 2*(50 - xge);
-      locParms += "&xge="+xge;
+      else if (xtell == 2)
+        xge = 2 * (50 - xge);
+      locParms += "&xge=" + xge;
     }
-    if ( ytell ) {
-      var yge = parseInt( (y*100)/coords.height );
-      if ( ytell == -1 )
+    if (ytell) {
+      var yge = parseInt((y * 100) / coords.height);
+      if (ytell == -1)
         yge = 100 - yge;
-      else if ( ytell == 2 )
-        yge = 2*(50 - yge);
-      locParms += "&yge="+yge;
+      else if (ytell == 2)
+        yge = 2 * (50 - yge);
+      locParms += "&yge=" + yge;
     }
   }
-  controlReq.send( controlParms+"&control="+control+locParms );
-  if ( streamMode == "single" )
-    fetchImage.pass( $('imageFeed').getElement('img') ).delay( 1000 );
+  controlReq.send(controlParms + "&control=" + control + locParms);
+  if (streamMode == "single")
+    fetchImage.pass($('imageFeed').getElement('img')).delay(1000);
 }
 
-function controlCmdImage( x, y ) {
+function controlCmdImage(x, y) {
   var imageControlParms = controlParms;
-  imageControlParms += "&scale="+scale;
-  imageControlParms += "&control="+imageControlMode;
+  imageControlParms += "&scale=" + scale;
+  imageControlParms += "&control=" + imageControlMode;
 
-  controlReq.send( imageControlParms+"&x="+x+"&y="+y );
-  if ( streamMode == "single" )
-    fetchImage.pass( $('imageFeed').getElement('img') ).delay( 1000 );
-}       
-
-function fetchImage( streamImage ) {
-  streamImage.src = streamImage.src.replace(/rand=\d+/i,'rand='+Math.floor((Math.random() * 1000000) ));
+  controlReq.send(imageControlParms + "&x=" + x + "&y=" + y);
+  if (streamMode == "single")
+    fetchImage.pass($('imageFeed').getElement('img')).delay(1000);
 }
 
-function handleClick( event ) {
+function fetchImage(streamImage) {
+  streamImage.src = streamImage.src.replace(/rand=\d+/i, 'rand=' + Math.floor((Math.random() * 1000000)));
+}
+
+function handleClick(event) {
   var target = event.target;
   var x = event.page.x - $(target).getLeft();
   var y = event.page.y - $(target).getTop();
 
-  if ( showMode == "events" || !imageControlMode ) {
-    if ( event.shift )
-      streamCmdPan( x, y );
+  if (showMode == "events" || !imageControlMode) {
+    if (event.shift)
+      streamCmdPan(x, y);
     else
-      streamCmdZoomIn( x, y );
+      streamCmdZoomIn(x, y);
   } else {
-    controlCmdImage( x, y );
+    controlCmdImage(x, y);
   }
 }
 
 function appletRefresh() {
-  if ( streamStatus && (!streamStatus.paused && !streamStatus.delayed) ) {
+  if (streamStatus && (!streamStatus.paused && !streamStatus.delayed)) {
     var streamImg = $('liveStream');
     var parent = streamImg.getParent();
     streamImg.dispose();
-    streamImg.inject( parent );
-    if ( appletRefreshTime )
-      appletRefresh.delay( appletRefreshTime*1000 );
+    streamImg.inject(parent);
+    if (appletRefreshTime)
+      appletRefresh.delay(appletRefreshTime * 1000);
   } else {
-    appletRefresh.delay( 15*1000 ); //if we are paused or delayed check every 15 seconds if we are live yet...
+    appletRefresh.delay(15 * 1000); //if we are paused or delayed check every 15 seconds if we are live yet...
   }
 }
 
@@ -696,9 +802,9 @@ var watchdogFunctions = {
 };
 
 //Make sure the various refreshes are still taking effect
-function watchdogCheck( type ) {
-  if ( watchdogInactive[type] ) {
-    console.log( "Detected streamWatch of type: " + type + " stopped, restarting" );
+function watchdogCheck(type) {
+  if (watchdogInactive[type]) {
+    console.log("Detected streamWatch of type: " + type + " stopped, restarting");
     watchdogFunctions[type]();
     watchdogInactive[type] = false;
   } else {
@@ -706,37 +812,39 @@ function watchdogCheck( type ) {
   }
 }
 
-function watchdogOk( type ) {
+function watchdogOk(type) {
   watchdogInactive[type] = false;
 }
 
 function initPage() {
-  
+
   //ptzmenu();
-  if ( streamMode == "single" ) {
-    statusCmdTimer = statusCmdQuery.delay( (Math.random()+0.1)*statusRefreshTimeout );
-    watchdogCheck.pass('status').periodical(statusRefreshTimeout*2);
+  if (streamMode == "single") {
+    statusCmdTimer = statusCmdQuery.delay((Math.random() + 0.1) * statusRefreshTimeout);
+    watchdogCheck.pass('status').periodical(statusRefreshTimeout * 2);
   } else {
-    streamCmdTimer = streamCmdQuery.delay( (Math.random()+0.1)*statusRefreshTimeout );
-    watchdogCheck.pass('stream').periodical(statusRefreshTimeout*2);
+    streamCmdTimer = streamCmdQuery.delay((Math.random() + 0.1) * statusRefreshTimeout);
+    watchdogCheck.pass('stream').periodical(statusRefreshTimeout * 2);
   }
 
-  eventCmdTimer = eventCmdQuery.delay( (Math.random()+0.1)*statusRefreshTimeout );
-  watchdogCheck.pass('event').periodical(eventsRefreshTimeout*2);
+  eventCmdTimer = eventCmdQuery.delay((Math.random() + 0.1) * statusRefreshTimeout);
+  watchdogCheck.pass('event').periodical(eventsRefreshTimeout * 2);
 
-  if ( canStreamNative || streamMode == "single" ) {
+  if (canStreamNative || streamMode == "single") {
     var streamImg = $('imageFeed').getElement('img');
-    if ( !streamImg )
+    if (!streamImg)
       streamImg = $('imageFeed').getElement('object');
-    if ( streamMode == "single" ) {
-      streamImg.addEvent( 'click', fetchImage.pass( streamImg ) );
-      fetchImage.pass( streamImg ).periodical( imageRefreshTimeout );
+    if (streamMode == "single") {
+      streamImg.addEvent('click', fetchImage.pass(streamImg));
+      fetchImage.pass(streamImg).periodical(imageRefreshTimeout);
     } else
-      streamImg.addEvent( 'click', function( event ) { handleClick( event ); } );
+      streamImg.addEvent('click', function (event) {
+        handleClick(event);
+      });
   }
 
-  if ( refreshApplet && appletRefreshTime )
-    appletRefresh.delay( appletRefreshTime*1000 );
+  if (refreshApplet && appletRefreshTime)
+    appletRefresh.delay(appletRefreshTime * 1000);
   if (scale == "auto") changeScale();
   if (window.history.length == 1) {
     $j('#closeControl').html('');
@@ -744,4 +852,4 @@ function initPage() {
 }
 
 // Kick everything off
-window.addEvent( 'domready', initPage );
+window.addEvent('domready', initPage);
