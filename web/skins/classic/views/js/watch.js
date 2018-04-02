@@ -1,3 +1,64 @@
+function ptzmenu(hasPan, hasTilt,hasDiag, cmds) {
+
+    const dirn = {
+      RIGHT: 0,
+      RIGHT_DOWN: 1,
+      DOWN:2,
+      DOWN_LEFT: 3,
+      LEFT: 4,
+      UP_LEFT:5,
+      UP:6,
+      UP_RIGHT:7
+    };
+    
+		var wheel = new wheelnav("ptzNavWheel");
+		wheel.slicePathFunction = slicePath().DonutSlice;
+		wheel.spreaderEnable = true;
+		wheel.spreaderRadius = 40;
+		wheel.spreaderInTitle = 'imgsrc:skins/classic/graphics/center-white.png';
+		wheel.spreaderOutTitle = 'imgsrc:skins/classic/graphics/center-white.png';
+		wheel.clickModeRotate = false;
+		wheel.colors = ['#AAAAAA'];
+		//          r    rd    d   dl   l    ul   u   ur
+		//          0     1    2    3   4     5   6   7 
+    var opt = [null,null,null,null,null,null,null,null];
+		var imgs = [
+			"imgsrc:skins/classic/graphics/arrow-r.png",
+			"imgsrc:skins/classic/graphics/arrow-dr.png",
+			"imgsrc:skins/classic/graphics/arrow-d.png",
+			"imgsrc:skins/classic/graphics/arrow-dl.png",
+			"imgsrc:skins/classic/graphics/arrow-l.png",
+			"imgsrc:skins/classic/graphics/arrow-ul.png",
+			"imgsrc:skins/classic/graphics/arrow-u.png",
+			"imgsrc:skins/classic/graphics/arrow-ur.png"
+		];
+		if (hasPan) {  opt[dirn.RIGHT]=imgs[dirn.RIGHT]; opt[dirn.LEFT]=imgs[dirn.LEFT]; }
+		if (hasTilt){  opt[dirn.DOWN]=imgs[dirn.DOWN]; opt[dirn.UP]=imgs[dirn.UP]; }
+    if (hasDiag) {  
+        opt[dirn.RIGHT_DOWN]=imgs[dirn.RIGHT_DOWN]; 
+        opt[dirn.DOWN_LEFT]=imgs[dirn.DOWN_LEFT]; 
+        opt[dirn.UP_LEFT]=imgs[dirn.UP_LEFT]; 
+        opt[dirn.UP_RIGHT]=imgs[dirn.UP_RIGHT];
+    }
+    
+    wheel.createWheel(opt);
+    wheel.navItems[dirn.RIGHT].navigateFunction = function() {controlCmd(cmds['MoveRight'],event, 1, 0);}
+    wheel.navItems[dirn.LEFT].navigateFunction = function () {controlCmd(cmds['MoveLeft'],event, -1, 0);}
+    wheel.navItems[dirn.DOWN].navigateFunction = function () {controlCmd(cmds['MoveDown'],event, 0, 1);}
+    wheel.navItems[dirn.UP].navigateFunction = function () {controlCmd(cmds['MoveUp'],event, 0, -1);}
+    wheel.navItems[dirn.RIGHT_DOWN].navigateFunction = function () {controlCmd(cmds['MoveDownRight'],event, 1, 1);}
+    wheel.navItems[dirn.DOWN_LEFT].navigateFunction = function () {controlCmd(cmds['MoveDownLeft'],event, -1, 1);}
+    wheel.navItems[dirn.UP_LEFT].navigateFunction = function () {controlCmd(cmds['MoveUpLeft'],event, -1, -1);}
+    wheel.navItems[dirn.UP_RIGHT].navigateFunction = function () {controlCmd(cmds['MoveUpRight'],event, 1, -1);}
+ 
+    // the center button is called a 'spreader' - it is used to collapse/expand the menu
+    // but we don't want that here. We need to handle both states of the button
+		var center_a = document.getElementById("wheelnav-ptzNavWheel-spreader");
+		var center_b = document.getElementById("wheelnav-ptzNavWheel-spreadertitle");
+  	center_a.onmousedown = function() {wheel.minPercent = wheel.maxPercent; controlCmd(cmds['Center']);}
+  	center_b.onmousedown = function() {wheel.minPercent = wheel.maxPercent;controlCmd(cmds['Center']);}
+}
+
 function setButtonState( element, butClass ) {
   element.className = butClass;
   element.disabled = (butClass != 'inactive');
@@ -650,6 +711,8 @@ function watchdogOk( type ) {
 }
 
 function initPage() {
+  
+  //ptzmenu();
   if ( streamMode == "single" ) {
     statusCmdTimer = statusCmdQuery.delay( (Math.random()+0.1)*statusRefreshTimeout );
     watchdogCheck.pass('status').periodical(statusRefreshTimeout*2);

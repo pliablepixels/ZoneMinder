@@ -77,7 +77,7 @@
 
 .ptzControls .controlsPanel .pantiltPanel {
     margin: 0 auto;
-    height: 180px;
+    /*height: 180px;*/
     float: left;
     width: 100px;
 }
@@ -142,6 +142,14 @@
     margin: 5px auto;
 }
 
+.arrowLabel {
+    text-align:center;
+   
+}
+.pantiltLabel {
+    text-align:center;
+    
+}
 .ptzControls .presetControls input {
     margin: 1px;
 }

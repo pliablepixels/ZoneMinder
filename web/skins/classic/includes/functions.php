@@ -148,6 +148,8 @@ echo output_link_if_exists( array(
 <?php
   } else if ( $view == 'watch' ) {
 ?>
+ <script src="js/raphael.min.js"></script>
+ <script src="js/wheelnav.min.js"></script>
 <?php
   }
   if ( $skinJsPhpFile ) {

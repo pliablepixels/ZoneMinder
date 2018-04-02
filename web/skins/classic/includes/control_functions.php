@@ -180,7 +180,8 @@ function controlZoom( $monitor, $cmds )
 <?php
     }
 ?>
-</div><?php
+</div>
+<?php
     return( ob_get_clean() );
 }
 
@@ -243,27 +244,20 @@ function controlPanTilt( $monitor, $cmds )
     ob_start();
 ?>
 <div class="pantiltControls">
-  <div class="pantiltLabel"><?php echo translate('PanTilt') ?></div>
-  <div class="pantiltButtons">
+  
 <?php
     $hasPan = $monitor->CanPan();
     $hasTilt = $monitor->CanTilt();
-    $hasDiag = $hasPan && $hasTilt && $monitor->CanMoveDiag();
+    $hasDiag = ($hasPan && $hasTilt && $monitor->CanMoveDiag());
+
+    // some of these may be null, which needs to be correct
+    // else JS call will fail with syntax error
+    $hasPan =  $hasPan?:'0';
+    $hasTilt = $hasTilt?:'0';
+    $hasDiag = $hasTilt?:'0';;
+  
+    echo '<script>ptzmenu('.$hasPan.','.$hasTilt.','.$hasDiag.','.json_encode($cmds).');</script>';
 ?>
-      <div class="arrowBtn upLeftBtn<?php echo $hasDiag?'':' invisible' ?>" onclick="controlCmd('<?php echo $cmds['MoveUpLeft'] ?>',event,-1,-1)"></div>
-      <div class="arrowBtn upBtn<?php echo $hasTilt?'':' invisible' ?>" onclick="controlCmd('<?php echo $cmds['MoveUp'] ?>',event,0,-1)"></div>
-      <div class="arrowBtn upRightBtn<?php echo $hasDiag?'':' invisible' ?>" onclick="controlCmd('<?php echo $cmds['MoveUpRight'] ?>',event,1,-1)"></div>
-      <div class="arrowBtn leftBtn<?php echo $hasPan?'':' invisible' ?>" onclick="controlCmd('<?php echo $cmds['MoveLeft'] ?>',event,1,0)"></div>
-<?php if ( isset($cmds['Center']) ) { ?>
-      <div class="arrowBtn centerBtn" onclick="controlCmd('<?php echo $cmds['Center'] ?>')"></div>
-<?php } else { ?>
-      <div class="arrowBtn NocenterBtn"></div>
-<?php } ?>
-      <div class="arrowBtn rightBtn<?php echo $hasPan?'':' invisible' ?>" onclick="controlCmd('<?php echo $cmds['MoveRight'] ?>',event,1,0)"></div>
-      <div class="arrowBtn downLeftBtn<?php echo $hasDiag?'':' invisible' ?>" onclick="controlCmd('<?php echo $cmds['MoveDownLeft'] ?>',event,-1,1)"></div>
-      <div class="arrowBtn downBtn<?php echo $hasTilt?'':' invisible' ?>" onclick="controlCmd('<?php echo $cmds['MoveDown'] ?>',event,0,1)"></div>
-      <div class="arrowBtn downRightBtn<?php echo $hasDiag?'':' invisible' ?>" onclick="controlCmd('<?php echo $cmds['MoveDownRight'] ?>',event,1,1)"></div>
-  </div>
 </div>
 <?php
     return( ob_get_clean() );
@@ -287,20 +281,22 @@ function controlPresets( $monitor, $cmds )
     ob_start();
 ?>
 <div class="presetControls">
-  <!--<div><?php echo translate('Presets') ?></div>-->
-  <div>
+
 <?php
     for ( $i = 1; $i <= $monitor->NumPresets(); $i++ )
     {
-?><input type="button" class="ptzNumBtn" title="<?php echo isset($labels[$i])?$labels[$i]:"" ?>" value="<?php echo $i ?>" onclick="controlCmd('<?php echo $cmds['PresetGoto'] ?><?php echo $i ?>');"/><?php
+?>
+        <input type="button" class="ptzNumBtn" title="<?php echo isset($labels[$i])?$labels[$i]:"" ?>" value="<?php echo $i ?>" onclick="controlCmd('<?php echo $cmds['PresetGoto'] ?><?php echo $i ?>');"/>
+<?php
         if ( $i && (($i%$presetBreak) == 0) )
         {
-?><br/><?php
+?>
+<?php
         }
     }
 ?>
-  </div>
-  <div>
+
+
 <?php
     if ( $monitor->HasHomePreset() )
     {
@@ -315,7 +311,7 @@ function controlPresets( $monitor, $cmds )
 <?php
     }
 ?>
-  </div>
+
 </div>
 <?php
     return( ob_get_clean() );
@@ -328,7 +324,7 @@ function controlPower( $monitor, $cmds )
     ob_start();
 ?>
 <div class="powerControls">
-  <div class="powerLabel"><?php echo translate('Control') ?></div>
+<div class="powerLabel"><?php echo translate('Control') ?></div>
   <div>
 <?php
     if ( $monitor->CanWake() )
@@ -350,7 +346,7 @@ function controlPower( $monitor, $cmds )
 <?php
     }
 ?>
-  </div>
+</div>
 </div>
 <?php
     return( ob_get_clean() );
@@ -361,31 +357,48 @@ function ptzControls( $monitor )
     $cmds = getControlCommands( $monitor );
     ob_start();
 ?>
-        <div class="controlsPanel">
-<?php
-        if ( $monitor->CanFocus() )
-            echo controlFocus( $monitor, $cmds );
-        if ( $monitor->CanZoom() )
-            echo controlZoom( $monitor, $cmds );
-        if ( $monitor->CanIris() )
-            echo controlIris( $monitor, $cmds );
-        if ( $monitor->CanWhite() )
-            echo controlWhite( $monitor, $cmds );
-        if ( $monitor->CanMove() ) {
-?>
-          <div class="pantiltPanel">
-<?php
-                echo controlPanTilt( $monitor, $cmds );
-?>
-          </div>
-<?php
-        }
-        if ( $monitor->CanWake() || $monitor->CanSleep() || $monitor->CanReset() )
-            echo controlPower( $monitor, $cmds );
-        if ( $monitor->HasPresets() )
-            echo controlPresets( $monitor, $cmds );
-?>
-        </div>
+    
+    <div class="controlsPanel">  
+
+   
+			<?php
+			
+        		if ( $monitor->HasPresets() )
+                        echo controlPresets( $monitor, $cmds );
+            ?>
+	
+
+	<table class="table">
+		<tr class="row">
+       
+            <?php 
+                if ( $monitor->CanFocus() )
+                    echo "<td class='col'>".controlFocus( $monitor, $cmds )."</td>";
+                if ( $monitor->CanZoom() )
+                    echo  "<td class='col'>".controlZoom( $monitor, $cmds )."</td>";
+                if ( $monitor->CanIris() )
+                    echo "<td class='col'>".controlIris( $monitor, $cmds )."</td>";
+                if ( $monitor->CanWhite() )
+                    echo "<td class='col'>".controlWhite( $monitor, $cmds )."</td>";
+            ?>
+            
+            <div class="pantiltPanel">
+				<?php
+					if ( $monitor->CanMove() ) {
+                       
+      					echo "<td class='col'>"."<div class='pantiltLabel'>".translate('PanTilt')."</div>"."<div id='ptzNavWheel'></div>"."</td>";
+                        echo "<td class='col'>".controlPanTilt( $monitor, $cmds )."</td>";			
+                    }
+                    if ( $monitor->CanWake() || $monitor->CanSleep() || $monitor->CanReset() )
+        		    echo "<td class='col'>".controlPower( $monitor, $cmds )."</td>";
+				?>
+             </div>
+		</tr>
+		
+
+	</table>
+    </div>
+
 <?php
     return( ob_get_clean() );
 }
