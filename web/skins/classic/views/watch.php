@@ -127,8 +127,8 @@ if ( $showPtzControls ) {
 if ( canView( 'Events' ) ) {
 ?>
       <div id="events">
-        <table id="eventList" cellspacing="0">
-          <thead>
+        <table id="eventList" class="table table-striped table-condensed" cellspacing="0">
+          <thead class="thead-highlight">
             <tr>
               <th class="colId"><?php echo translate('Id') ?></th>
               <th class="colName"><?php echo translate('Name') ?></th>
