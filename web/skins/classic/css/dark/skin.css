@@ -559,6 +559,19 @@ input[type=submit]:disabled,
   background-color: #444444;
 }
 
+.thead-highlight {
+  background-color:#576574;
+  
+}
+
+.thead-highlight>tr>th  {
+    color:white;
+}
+
+.thead-highlight>tr>th>a {
+    color:white;
+}
+
 /* Override chosen for dark theme */
 .chosen-single,
 .chosen-container,

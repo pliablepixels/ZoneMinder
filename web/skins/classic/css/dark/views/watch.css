@@ -39,9 +39,7 @@
 }
 
 #dvrControls input {
-    height: 20px;
-    width: 28px;
-    padding-bottom: 3px;
+    padding-bottom: 8px;
     margin: 0 3px;
 }
 

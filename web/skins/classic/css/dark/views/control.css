@@ -1,7 +1,7 @@
 .ptzControls {
     vertical-align: top;
     margin: 10px auto 0;
-    width: 500px;
+    width: 600px;
 }
 
 .ptzControls::after {
@@ -38,7 +38,9 @@
     height: 48px;
     margin: 0 auto;
     cursor: pointer;
+  
 }
+
 
 /*
  * This is a bit of a hack as these lines should be in the above
@@ -52,11 +54,11 @@
 */
 
 .ptzControls .controlsPanel .upBtn {
-    background: url("../skins/classic/graphics/arrow-l-u.png") no-repeat 0 0;
+    background: url("../skins/classic/graphics/dark/arrow-l-u.png") no-repeat 0 0;
 }
 
 .ptzControls .controlsPanel .downBtn {
-    background: url("../skins/classic/graphics/arrow-l-d.png") no-repeat 0 0;
+    background: url("../skins/classic/graphics/dark/arrow-l-d.png") no-repeat 0 0;
 }
 
 .ptzControls .controlsPanel .focusControls {
@@ -77,7 +79,7 @@
 
 .ptzControls .controlsPanel .pantiltPanel {
     margin: 0 auto;
-    height: 180px;
+ 
     float: left;
     width: 100px;
 }
@@ -97,6 +99,7 @@
     cursor: pointer;
     float: left;
 }
+
 
 .ptzControls .controlsPanel .pantiltPanel .pantiltControls .upLeftBtn {
     background: url("../skins/classic/graphics/arrow-ul.png") no-repeat 0 0;
