@@ -1644,14 +1644,14 @@ bool Monitor::Analyse() {
             std::string alarm_cause="";
             for ( int i=0; i < n_zones; i++) {
                 if (zones[i]->Alarmed()) {
-                alarm_cause += std::string(zones[i]->Label());
-                if (i < n_zones-1) {
-                    alarm_cause +=",";
+                    alarm_cause += std::string(zones[i]->Label());
+                    if (i < n_zones-1) {
+                        alarm_cause +=",";
+                    }
                 }
             }
-}
-alarm_cause = cause+" "+alarm_cause;
-strncpy(shared_data->alarm_cause,alarm_cause.c_str(), sizeof(shared_data->alarm_cause)-1);
+            alarm_cause = cause+" "+alarm_cause;
+            strncpy(shared_data->alarm_cause,alarm_cause.c_str(), sizeof(shared_data->alarm_cause)-1);
           }
           last_alarm_count = image_count;
         } else {
