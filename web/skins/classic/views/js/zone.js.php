@@ -109,7 +109,9 @@ var zoneObjectSizeStrings = {
   'notAnImage': '<?php echo addslashes(translate('ObjectImageNotAnImage')) ?>',
   'sizeNeeded': '<?php echo addslashes(translate('ObjectSizeNeeded')) ?>',
   'testRunning': '<?php echo addslashes(translate('ZoneTestRunning')) ?>',
-  'testStale': '<?php echo addslashes(translate('ZoneTestStale')) ?>'
+  'testStale': '<?php echo addslashes(translate('ZoneTestStale')) ?>',
+  'testUnknown': '<?php echo addslashes(translate('ZoneTestUnknown')) ?>',
+  'testUnknownFrame': '<?php echo addslashes(translate('ZoneTestUnknownFrame')) ?>'
 };
 
 var deleteString = "<?php echo translate('Delete') ?>";

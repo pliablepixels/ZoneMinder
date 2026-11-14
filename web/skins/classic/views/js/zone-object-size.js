@@ -151,35 +151,104 @@
     return {a: {x: x, y: y}, b: {x: x + w, y: y + h}};
   }
 
-  // The stage a frame's zone stats failed at, or null if it got through them
-  // all - CheckAlarms stops at the first stage that fails. Stages the check
-  // method skips are not tested.
-  function frameVerdict(fz, zone) {
-    let failedAt = null;
-    if (!fz.alarm || fz.alarm < zone.minAlarm) {
-      failedAt = 'alarm';
-    } else if (zone.checkMethod >= 2 && fz.filter < zone.minFilter) {
-      failedAt = 'filter';
-    } else if (zone.checkMethod >= 3 &&
-        !(fz.blobs >= Math.max(zone.minBlobs, 1) && fz.maxBlob >= zone.minBlob)) {
-      failedAt = 'blob';
-    }
-    return {failedAt: failedAt, scored: fz.score > 0};
+  const STAGES = ['alarm', 'filter', 'blob'];
+  const CHECK_METHODS = ['AlarmedPixels', 'FilteredPixels', 'Blobs'];
+  const PIXEL_FIELDS = {
+    minAlarm: 'MinAlarmPixels', maxAlarm: 'MaxAlarmPixels',
+    minFilter: 'MinFilterPixels', maxFilter: 'MaxFilterPixels',
+    minBlob: 'MinBlobPixels', maxBlob: 'MaxBlobPixels',
+  };
+
+  // The form's values as CheckAlarms sees them: percent of the zone turned
+  // into pixels the way Zone::LoadRow does (zm_zone.cpp:1180), 0 for "none".
+  function zoneThresholds(values, area) {
+    const t = {
+      checkMethod: CHECK_METHODS.indexOf(values.CheckMethod) + 1,
+      minBlobs: parseInt(values.MinBlobs, 10) || 0,
+      maxBlobs: parseInt(values.MaxBlobs, 10) || 0,
+    };
+    Object.keys(PIXEL_FIELDS).forEach(function(k) {
+      const pct = parseFloat(values[PIXEL_FIELDS[k]]);
+      t[k] = pct > 0 ? Math.floor(pct * area / 100 + 0.5) : 0;
+    });
+    return t;
   }
 
-  // Per stage: true passed, false failed, undefined not reached or not tested.
+  // CheckAlarms' test for one count: something there, and within min/max
+  // where those are set.
+  function within(n, min, max) {
+    return n > 0 && !(min && n < min) && !(max && n > max);
+  }
+
+  // Would the frame zma measured under `ran` pass under `now`? The counts
+  // zma reports do not depend on the Min/Max fields, so those can change
+  // without a re-run - except that CheckAlarms stops at the first stage that
+  // fails, so a stage zma never reached was never measured (unknown). Blob
+  // count depends on Min/MaxBlobPixels, so after changing those only the
+  // largest blob is known, which settles "at least one blob" and nothing more.
+  // ponytail: ignores overload frames after a Max is exceeded; re-run for those.
+  function whatIfVerdict(fz, ran, now) {
+    let reached = true;
+    for (let i = 0; i < Math.max(now.checkMethod, 1); i++) {
+      const stage = STAGES[i];
+      if (!reached || i >= ran.checkMethod) return {failedAt: null, unknown: stage, scored: false};
+      let pass;
+      if (stage === 'alarm') {
+        pass = within(fz.alarm, now.minAlarm, now.maxAlarm);
+        reached = within(fz.alarm, ran.minAlarm, ran.maxAlarm);
+      } else if (stage === 'filter') {
+        pass = within(fz.filter, now.minFilter, now.maxFilter);
+        reached = within(fz.filter, ran.minFilter, ran.maxFilter);
+      } else if (now.minBlob === ran.minBlob && now.maxBlob === ran.maxBlob) {
+        pass = within(fz.blobs, now.minBlobs, now.maxBlobs);
+      } else if (now.minBlobs <= 1 && !now.maxBlob && !now.maxBlobs) {
+        pass = within(fz.largestBlob, now.minBlob, 0);
+      } else {
+        return {failedAt: null, unknown: stage, scored: false};
+      }
+      if (!pass) return {failedAt: stage, unknown: null, scored: false};
+    }
+    return {failedAt: null, unknown: null, scored: true};
+  }
+
+  // Per stage: true passed, false failed, undefined not reached, not tested
+  // or not known.
   function stageResults(verdict, checkMethod) {
-    const order = ['alarm', 'filter', 'blob'];
     const out = {};
-    let failed = false;
-    order.forEach(function(stage, i) {
-      if (checkMethod < i + 1 || failed) return;
-      if (verdict.failedAt === stage) {
+    let stop = false;
+    STAGES.forEach(function(stage, i) {
+      if (checkMethod < i + 1 || stop) return;
+      if (verdict.unknown === stage) {
+        stop = true;
+      } else if (verdict.failedAt === stage) {
         out[stage] = false;
-        failed = true;
+        stop = true;
       } else {
         out[stage] = true;
       }
+    });
+    return out;
+  }
+
+  // frames: [{frame, verdict}] in frame order, only those zma reported (the
+  // rest had no change, so did not score). An alarm needs alarmFrameCount
+  // scored frames in a row: zma.cpp's PREALARM count resets on any miss.
+  function tallyVerdicts(frames, alarmFrameCount) {
+    const out = {scored: 0, unknown: 0, wouldAlarm: false,
+      passed: {alarm: 0, filter: 0, blob: 0}};
+    let run = 0;
+    let prev = null;
+    frames.forEach(function(f) {
+      const v = f.verdict;
+      if (v.unknown) out.unknown++;
+      run = v.scored ? ((prev !== null && f.frame === prev + 1) ? run + 1 : 1) : 0;
+      prev = f.frame;
+      if (v.scored) out.scored++;
+      if (run >= Math.max(alarmFrameCount, 1)) out.wouldAlarm = true;
+      const st = stageResults(v, 3);
+      STAGES.forEach(function(stage) {
+        if (st[stage]) out.passed[stage]++;
+      });
     });
     return out;
   }
@@ -227,36 +296,11 @@
     return {a: {x: v[0], y: v[1]}, b: {x: v[2], y: v[3]}};
   }
 
-  // Reduces zma's per-frame output to what the zone needs to show: for each
-  // stage, the peak value reached and how many frames got through it.
-  function summarizeZoneTest(result, zoneId) {
-    const zone = (result.zones || []).filter(function(z) {
-      return z.id == zoneId;
-    })[0];
-    if (!zone || !result.done) return null;
-    const peak = {alarm: 0, filter: 0, blob: 0};
-    const passed = {alarm: 0, filter: 0, blob: 0, scored: 0};
-    (result.frames || []).forEach(function(f) {
-      const z = (f.zones || []).filter(function(fz) {
-        return fz.id == zoneId;
-      })[0];
-      if (!z) return;
-      peak.alarm = Math.max(peak.alarm, z.alarm);
-      peak.filter = Math.max(peak.filter, z.filter);
-      peak.blob = Math.max(peak.blob, z.largestBlob);
-      if (z.score > 0) passed.scored++;
-      const stages = stageResults(frameVerdict(z, zone), zone.checkMethod);
-      ['alarm', 'filter', 'blob'].forEach(function(stage) {
-        if (stages[stage]) passed[stage]++;
-      });
-    });
-    return {zone: zone, peak: peak, passed: passed, done: result.done};
-  }
-
   const api = {
     MIN_FILTER_KERNEL: MIN_FILTER_KERNEL,
-    summarizeZoneTest: summarizeZoneTest,
-    frameVerdict: frameVerdict,
+    zoneThresholds: zoneThresholds,
+    whatIfVerdict: whatIfVerdict,
+    tallyVerdicts: tallyVerdicts,
     stageResults: stageResults,
     frameAt: frameAt,
     pixelBoxToPercent: pixelBoxToPercent,
@@ -460,17 +504,19 @@
     {id: 'objectBlobRect', field: 'MinBlobPixels', stage: 'blob'},
   ];
 
-  // The last zma test, while it still describes the form. Each stage is a pass
-  // if any frame got through it; undefined means not tested or not applicable.
-  let testSummary = null;
+  // The last zma test, re-judged against the form's thresholds as they change.
+  // Null once a setting the thresholds cannot cover has changed.
+  let test = null;
   // While replaying, the rects show the frame on screen instead.
   let replayStages = null;
+  // Each stage is a pass if any frame got through it; undefined means not
+  // tested or not applicable.
   function testVerdict(stage) {
     if (replayStages) return replayStages[stage];
-    if (!testSummary) return undefined;
-    const method = testSummary.zone.checkMethod;
+    if (!test) return undefined;
+    const method = test.now.checkMethod;
     if ((stage === 'filter' && method < 2) || (stage === 'blob' && method < 3)) return undefined;
-    return testSummary.passed[stage] > 0;
+    return test.tally.passed[stage] > 0;
   }
   const INNER_RECT_IDS = THRESHOLD_RECTS.map(function(t) {
     return t.id;
@@ -733,7 +779,7 @@
 
     // Refresh the pixel readouts beside each percentage field.
     updateAllPixelDisplays();
-    staleTest();
+    rejudgeTest();
     drawThresholds(lastBox);
     return true;
   }
@@ -770,45 +816,59 @@
     return Math.round(n).toLocaleString();
   }
 
-  function showTestResult(summary) {
+  function showTestResult() {
     const out = document.getElementById('zoneTestResult');
-    if (!out) return;
-    out.textContent = '';
-    if (!summary) return;
-    const z = summary.zone;
-    const d = summary.done;
-    const head = document.createElement('div');
-    head.textContent = d.frames + ' frames analysed - ' + summary.passed.scored +
-        ' scored, ' + d.alarms + ' alarm(s) (an alarm needs ' + d.alarmFrameCount +
-        ' scored frames in a row)';
-    out.appendChild(head);
-    const rows = [
-      ['alarm', 'swatchAlarm', 'Alarmed', summary.peak.alarm, z.minAlarm, 1],
-      ['filter', 'swatchFilter', 'Filtered', summary.peak.filter, z.minFilter, 2],
-      ['blob', 'swatchBlob', 'Largest blob', summary.peak.blob, z.minBlob, 3],
-    ];
-    rows.forEach(function(r) {
-      if (z.checkMethod < r[5]) return;
-      const line = document.createElement('div');
-      line.className = 'swatch ' + r[1] + (testVerdict(r[0]) ? ' testPass' : ' testFail');
-      line.textContent = r[2] + ': peak ' + fmt(r[3]) + ' px, needs ' + fmt(r[4]) +
-          ' px - ' + summary.passed[r[0]] + ' frame(s) passed';
-      out.appendChild(line);
-    });
+    if (!out || !test) return;
+    const t = test.tally;
+    let text = test.done.frames + ' frames - ' + t.scored + ' score - ' +
+        (t.wouldAlarm ? 'would alarm' : 'would not alarm') +
+        ' (needs ' + test.done.alarmFrameCount + ' scored frames in a row)';
+    if (t.unknown) text += ' - ' + t.unknown + ' ' + zoneObjectSizeStrings.testUnknown;
+    out.textContent = text;
   }
 
-  // Any change to the form means the result no longer describes it.
+  // Values the test was run with, or that the form holds now.
+  function formValues() {
+    const form = document.zoneForm;
+    const values = {CheckMethod: form.elements['newZone[CheckMethod]'].value};
+    MANAGED_FIELDS.forEach(function(field) {
+      const el = form.elements['newZone[' + field + ']'];
+      values[field] = el ? el.value : '';
+    });
+    return values;
+  }
+
+  // Settings that change what zma measures, not just how it is judged.
+  function measuredKey(values) {
+    return [values.MinPixelThreshold, values.MaxPixelThreshold, values.FilterX,
+      values.FilterY, values.OverloadFrames, getCoordString()].join('|');
+  }
+
+  // After any form change: re-judge every frame against the new thresholds,
+  // or drop the result if zma has to measure again.
+  function rejudgeTest() {
+    if (!test) return;
+    const values = formValues();
+    if (measuredKey(values) !== test.measured) {
+      staleTest();
+      return;
+    }
+    test.now = zoneThresholds(values, test.zone.area);
+    test.frames.forEach(function(f) {
+      f.verdict = whatIfVerdict(f.fz, test.ran, test.now);
+    });
+    test.tally = tallyVerdicts(test.frames, test.done.alarmFrameCount);
+    showTestResult();
+    if (replay) showReplayFrame(); else refreshOverlay();
+  }
+
   function staleTest() {
     closeReplay();
-    if (!testSummary) return;
-    testSummary = null;
+    if (!test) return;
+    test = null;
     const out = document.getElementById('zoneTestResult');
-    if (out) {
-      const note = document.createElement('div');
-      note.className = 'testStale';
-      note.textContent = zoneObjectSizeStrings.testStale;
-      out.insertBefore(note, out.firstChild);
-    }
+    if (out) out.textContent = zoneObjectSizeStrings.testStale;
+    refreshOverlay();
   }
 
   function runTest() {
@@ -828,8 +888,11 @@
       const el = form.elements['newZone[' + field + ']'];
       if (el && !el.disabled) data['newZone[' + field + ']'] = el.value;
     });
+    const sent = formValues();
     btn.disabled = true;
-    testSummary = null;
+    closeReplay();
+    test = null;
+    refreshOverlay();
     out.textContent = zoneObjectSizeStrings.testRunning;
     // Not getJSON: that takes the global ZM_WEB_AJAX_TIMEOUT (a few seconds)
     // and zma needs longer than that for any real event.
@@ -844,14 +907,14 @@
             out.textContent = resp.message;
             return;
           }
-          testSummary = summarizeZoneTest(resp, data.zid);
-          showTestResult(testSummary);
-          const video = select.options[select.selectedIndex].getAttribute('data-video');
-          if (testSummary && video) {
-            openReplay(resp, testSummary, video);
-          } else {
-            refreshOverlay();
+          test = buildTest(resp, data.zid, sent);
+          if (!test) {
+            out.textContent = '';
+            return;
           }
+          rejudgeTest();
+          const video = select.options[select.selectedIndex].getAttribute('data-video');
+          if (video) openReplay(video);
         })
         .fail(function(jqxhr, textStatus, error) {
           out.textContent = textStatus + (error ? ': ' + error : '');
@@ -891,6 +954,7 @@
 
   function frameColour(f) {
     if (f.verdict.scored) return '#00c000';
+    if (f.verdict.unknown) return '#505050';
     return STAGE_COLOURS[f.verdict.failedAt] || '#808080';
   }
 
@@ -937,17 +1001,18 @@
       const cls = f.verdict.scored ? 'pass' : 'fail';
       drawReplayBox('replayMotionRect', f.fz.motionBox, cls);
       drawReplayBox('replayBlobRect', f.fz.blobBox, cls);
-      replayStages = stageResults(f.verdict, replay.zone.checkMethod);
+      replayStages = stageResults(f.verdict, test.now.checkMethod);
       if (info) {
         const parts = ['frame ' + f.frame];
-        const z = replay.zone;
+        const z = test.now;
         [['alarm', 'alarmed', f.fz.alarm, z.minAlarm, 1],
           ['filter', 'filtered', f.fz.filter, z.minFilter, 2],
           ['blob', 'largest blob', f.fz.largestBlob, z.minBlob, 3]].forEach(function(r) {
           if (z.checkMethod < r[4] || replayStages[r[0]] === undefined) return;
           parts.push(r[1] + ' ' + fmt(r[2]) + '/' + fmt(r[3]) + (replayStages[r[0]] ? ' ✓' : ' ✗'));
         });
-        parts.push(f.verdict.scored ? 'scored ' + f.fz.score : 'no score');
+        if (f.verdict.unknown) parts.push(zoneObjectSizeStrings.testUnknownFrame);
+        parts.push(f.verdict.scored ? 'scores' : 'no score');
         info.textContent = parts.join(' · ');
       }
     } else {
@@ -967,27 +1032,43 @@
     }
   }
 
-  function openReplay(resp, summary, src) {
-    const video = replayVideo();
-    if (!video) return;
-    const zoneId = summary.zone.id;
+  // This zone's frames from zma's output, judged as zma judged them until the
+  // form changes.
+  function buildTest(resp, zoneId, sent) {
+    const zone = (resp.zones || []).filter(function(z) {
+      return z.id == zoneId;
+    })[0];
+    if (!zone || !resp.done) return null;
+    const ran = zoneThresholds(sent, zone.area);
     const frames = [];
     (resp.frames || []).forEach(function(f) {
       const fz = (f.zones || []).filter(function(z) {
         return z.id == zoneId;
       })[0];
-      if (fz && f.t !== undefined) {
-        frames.push({t: f.t, frame: f.frame, fz: fz, verdict: frameVerdict(fz, summary.zone)});
-      }
+      if (fz) frames.push({t: f.t, frame: f.frame, fz: fz});
+    });
+    frames.sort(function(x, y) {
+      return x.frame - y.frame;
+    });
+    return {zone: zone, done: resp.done, frames: frames, ran: ran,
+      measured: measuredKey(sent)};
+  }
+
+  function openReplay(src) {
+    const video = replayVideo();
+    if (!video || !test) return;
+    const frames = test.frames.filter(function(f) {
+      return f.t !== undefined;
     });
     frames.sort(function(x, y) {
       return x.t - y.t;
     });
     const lastT = frames.length ? frames[frames.length - 1].t : 0;
+    const total = test.done.frames;
     replay = {
-      frames: frames, zone: summary.zone, totalFrames: resp.done.frames, lastT: lastT,
+      frames: frames, totalFrames: total, lastT: lastT,
       // Half a frame either side; refined once the video's length is known.
-      tol: lastT && resp.done.frames ? lastT / resp.done.frames : 0.05,
+      tol: lastT && total ? lastT / total : 0.05,
     };
     if (stillShown) hideStill();
     streamCmdPause();
@@ -1097,7 +1178,7 @@
       ['input', 'change'].forEach(function(type) {
         document.zoneForm.addEventListener(type, function(evt) {
           // Picking another event is not a settings change.
-          if (evt.target.id !== 'zoneTestEvent') staleTest();
+          if (evt.target.id !== 'zoneTestEvent') rejudgeTest();
         });
       });
     }

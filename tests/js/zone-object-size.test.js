@@ -389,59 +389,72 @@ test('a reversed box is moved as its normalised self', () => {
   assert.deepStrictEqual(ZM.shiftBox(rev, 0, 0, 100, 100), OUTER);
 });
 
-console.log('summarizeZoneTest');
-// Shaped like zma --json output for zone 11 of event 432536.
-const ZMA = {
-  zones: [{id: 11, checkMethod: 3, minAlarm: 26131, minFilter: 18242,
-    minBlob: 15613, minBlobs: 1}],
-  frames: [
-    // Passes every stage.
-    {frame: 5, zones: [{id: 11, alarm: 144989, filter: 133210, blobs: 3,
-      maxBlob: 37972, largestBlob: 37972, score: 5}]},
-    // Through filtering, but the biggest blob is short of MinBlobPixels and
-    // was removed: maxBlob 0, largestBlob says how close it came.
-    {frame: 9, zones: [{id: 11, alarm: 30000, filter: 20000, blobs: 0,
-      maxBlob: 0, largestBlob: 12000, score: 0}]},
-    // Fails at the first stage; zma reports nothing further.
-    {frame: 12, zones: [{id: 11, alarm: 900, filter: 0, blobs: 0,
-      maxBlob: 0, largestBlob: 0, score: 0}]},
-    // Another zone's numbers must not leak in.
-    {frame: 13, zones: [{id: 12, alarm: 999999, filter: 999999, blobs: 9,
-      maxBlob: 999999, largestBlob: 999999, score: 9}]},
-  ],
-  done: {frames: 600, alarms: 1, alarmFrameCount: 3},
-};
-test('each stage counts only frames that got through the one before', () => {
-  const s = ZM.summarizeZoneTest(ZMA, 11);
-  assert.deepStrictEqual(s.passed, {alarm: 2, filter: 2, blob: 1, scored: 1});
-});
-test('peaks come from this zone only, blob from before removal', () => {
-  const s = ZM.summarizeZoneTest(ZMA, 11);
-  assert.deepStrictEqual(s.peak, {alarm: 144989, filter: 133210, blob: 37972});
-});
-test('AlarmedPixels stops counting after the first stage', () => {
-  const r = JSON.parse(JSON.stringify(ZMA));
-  r.zones[0].checkMethod = 1;
-  const s = ZM.summarizeZoneTest(r, 11);
-  assert.deepStrictEqual(s.passed, {alarm: 2, filter: 0, blob: 0, scored: 1});
-});
-test('a zone zma did not report, or no done line, gives nothing', () => {
-  assert.strictEqual(ZM.summarizeZoneTest(ZMA, 99), null);
-  assert.strictEqual(ZM.summarizeZoneTest({zones: ZMA.zones, frames: []}, 11), null);
+console.log('zoneThresholds');
+test('percent of the zone becomes pixels the way Zone::LoadRow rounds it', () => {
+  const t = ZM.zoneThresholds({CheckMethod: 'Blobs', MinAlarmPixels: '2.5',
+    MaxAlarmPixels: '', MinFilterPixels: '1.75', MinBlobPixels: '0.01',
+    MinBlobs: '1', MaxBlobs: ''}, 1000003);
+  assert.deepStrictEqual(t, {checkMethod: 3, minBlobs: 1, maxBlobs: 0,
+    minAlarm: 25000, maxAlarm: 0, minFilter: 17500, maxFilter: 0,
+    minBlob: 100, maxBlob: 0});
 });
 
-console.log('frameVerdict / stageResults');
-const Z = ZMA.zones[0];
-test('the first stage that falls short is the one reported', () => {
-  assert.strictEqual(ZM.frameVerdict(ZMA.frames[2].zones[0], Z).failedAt, 'alarm');
-  assert.strictEqual(ZM.frameVerdict(ZMA.frames[1].zones[0], Z).failedAt, 'blob');
-  assert.strictEqual(ZM.frameVerdict(ZMA.frames[0].zones[0], Z).failedAt, null);
+console.log('whatIfVerdict');
+// Zone 11 of event 432536, as zma --json reported it.
+const RAN = {checkMethod: 3, minAlarm: 26131, maxAlarm: 0, minFilter: 18242,
+  maxFilter: 0, minBlob: 15613, maxBlob: 0, minBlobs: 1, maxBlobs: 0};
+const with_ = (o) => Object.assign({}, RAN, o);
+// Passes every stage.
+const PASS = {alarm: 144989, filter: 133210, blobs: 3, maxBlob: 37972, largestBlob: 37972};
+// Through filtering, but its only blob was under MinBlobPixels and removed.
+const SMALL = {alarm: 30000, filter: 20000, blobs: 0, maxBlob: 0, largestBlob: 12000};
+// Short at the first stage, so zma measured nothing after it.
+const QUIET = {alarm: 900, filter: 0, blobs: 0, maxBlob: 0, largestBlob: 0};
+test('unchanged settings give zma\'s own verdict', () => {
+  assert.deepStrictEqual(ZM.whatIfVerdict(PASS, RAN, RAN), {failedAt: null, unknown: null, scored: true});
+  assert.strictEqual(ZM.whatIfVerdict(SMALL, RAN, RAN).failedAt, 'blob');
+  assert.strictEqual(ZM.whatIfVerdict(QUIET, RAN, RAN).failedAt, 'alarm');
 });
-test('stages after the failure are not reached, not failed', () => {
-  assert.deepStrictEqual(ZM.stageResults({failedAt: 'alarm'}, 3), {alarm: false});
+test('raising a minimum fails frames that passed', () => {
+  assert.strictEqual(ZM.whatIfVerdict(PASS, RAN, with_({minFilter: 140000})).failedAt, 'filter');
+  assert.strictEqual(ZM.whatIfVerdict(PASS, RAN, with_({minBlob: 40000})).failedAt, 'blob');
+});
+test('lowering MinBlobPixels passes a blob zma removed, from its size', () => {
+  assert.strictEqual(ZM.whatIfVerdict(SMALL, RAN, with_({minBlob: 10000})).scored, true);
+});
+test('a stage zma never reached is unknown, not failed', () => {
+  const v = ZM.whatIfVerdict(QUIET, RAN, with_({minAlarm: 500}));
+  assert.deepStrictEqual(v, {failedAt: null, unknown: 'filter', scored: false});
+  assert.strictEqual(ZM.whatIfVerdict(PASS, with_({checkMethod: 1}), RAN).unknown, 'filter');
+});
+test('blob count after changing blob size is unknown when MinBlobs > 1', () => {
+  assert.strictEqual(ZM.whatIfVerdict(PASS, RAN, with_({minBlob: 100, minBlobs: 2})).unknown, 'blob');
+  // Same blob size: zma's count stands.
+  assert.strictEqual(ZM.whatIfVerdict(PASS, RAN, with_({minBlobs: 4})).failedAt, 'blob');
+});
+test('a Max now exceeded fails the stage', () => {
+  assert.strictEqual(ZM.whatIfVerdict(PASS, RAN, with_({maxAlarm: 100000})).failedAt, 'alarm');
+});
+test('stageResults stops at an unknown stage', () => {
+  assert.deepStrictEqual(ZM.stageResults({failedAt: null, unknown: 'filter'}, 3), {alarm: true});
   assert.deepStrictEqual(ZM.stageResults({failedAt: 'blob'}, 3),
       {alarm: true, filter: true, blob: false});
-  assert.deepStrictEqual(ZM.stageResults({failedAt: null}, 2), {alarm: true, filter: true});
+});
+
+console.log('tallyVerdicts');
+const v = (scored, extra) => Object.assign({failedAt: scored ? null : 'alarm', unknown: null, scored: scored}, extra);
+test('an alarm needs the count of scored frames in a row', () => {
+  const frames = [{frame: 1, verdict: v(true)}, {frame: 2, verdict: v(true)},
+    {frame: 4, verdict: v(true)}];
+  const t = ZM.tallyVerdicts(frames, 3);
+  assert.strictEqual(t.scored, 3);
+  assert.strictEqual(t.wouldAlarm, false); // frame 3 had no change
+  frames.splice(2, 0, {frame: 3, verdict: v(true)});
+  assert.strictEqual(ZM.tallyVerdicts(frames, 3).wouldAlarm, true);
+});
+test('unknown frames are counted and not scored', () => {
+  const t = ZM.tallyVerdicts([{frame: 1, verdict: {failedAt: null, unknown: 'blob', scored: false}}], 1);
+  assert.deepStrictEqual([t.unknown, t.scored, t.passed.filter, t.passed.blob], [1, 0, 1, 0]);
 });
 
 console.log('frameAt');

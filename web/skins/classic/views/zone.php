@@ -419,6 +419,7 @@ if ( count($other_zones) ) {
                       <span class="swatchFilter"><?php echo translate('ZoneReplayFailFilter') ?></span>
                       <span class="swatchBlob"><?php echo translate('ZoneReplayFailBlob') ?></span>
                       <span class="legendNone"><?php echo translate('ZoneReplayNoChange') ?></span>
+                      <span class="legendRerun"><?php echo translate('ZoneReplayRerun') ?></span>
                     </div>
                     <div>
                       <button type="button" id="replayPrevBtn" class="btn btn-normal" title="<?php echo translate('ZoneReplayPrev') ?>"><i class="material-icons md-18">skip_previous</i></button>
