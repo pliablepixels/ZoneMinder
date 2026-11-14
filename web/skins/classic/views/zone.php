@@ -141,6 +141,18 @@ foreach ($rectangle_ratios as $id => $spec) {
   if ($saved >= 1 and $saved <= 100) $rectangle_ratios[$id]['value'] = $saved;
 }
 
+# Testing the form's settings against a recording, through zma --dry-run.
+# Disabled, with the reason as its title, when it cannot work.
+$test_events = dbFetchAll('SELECT Id, StartDateTime, Length, Cause FROM Events WHERE MonitorId=? ORDER BY Id DESC LIMIT 25', NULL, array($monitor->Id()));
+$test_disabled = '';
+if ( !$zid ) {
+  $test_disabled = translate('ZoneTestNeedSave');
+} else if ( !count($test_events) ) {
+  $test_disabled = translate('ZoneTestNoEvents');
+} else if ( !is_executable(ZM_PATH_BIN.'/zma') ) {
+  $test_disabled = translate('ZoneTestNoZma');
+}
+
 $focusWindow = true;
 # Have to do this here, because the .js.php references somethings figured out when generating the streamHTML
 $monitor->connKey();
@@ -374,6 +386,25 @@ if ( count($other_zones) ) {
 								</tr>
 							</tbody>
 						</table>
+            <table id="zoneTest">
+              <caption title="<?php echo translate('ZoneTestHelp') ?>"><?php echo translate('ZoneTest') ?> <i class="material-icons md-18">help_outline</i></caption>
+              <tbody>
+                <tr>
+                  <td>
+                    <select id="zoneTestEvent" aria-label="<?php echo translate('Event') ?>"<?php echo $test_disabled ? ' disabled' : '' ?>>
+<?php foreach ( $test_events as $test_event ) { ?>
+                      <option value="<?php echo $test_event['Id'] ?>"><?php echo $test_event['Id'].' - '.validHtmlStr($test_event['StartDateTime']).' ('.round($test_event['Length']).'s, '.validHtmlStr($test_event['Cause']).')' ?></option>
+<?php } ?>
+                    </select>
+                    <!-- A disabled button gets no hover, so the reason sits on a wrapper. -->
+                    <span title="<?php echo validHtmlStr($test_disabled) ?>">
+                      <button type="button" id="zoneTestBtn" class="btn btn-normal"<?php echo $test_disabled ? ' disabled' : '' ?>><?php echo translate('ZoneTestRun') ?></button>
+                    </span>
+                  </td>
+                </tr>
+                <tr><td id="zoneTestResult"></td></tr>
+              </tbody>
+            </table>
             <div id="zonePoints">
               <table>
                 <tbody>

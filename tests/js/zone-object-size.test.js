@@ -389,5 +389,46 @@ test('a reversed box is moved as its normalised self', () => {
   assert.deepStrictEqual(ZM.shiftBox(rev, 0, 0, 100, 100), OUTER);
 });
 
+console.log('summarizeZoneTest');
+// Shaped like zma --json output for zone 11 of event 432536.
+const ZMA = {
+  zones: [{id: 11, checkMethod: 3, minAlarm: 26131, minFilter: 18242,
+    minBlob: 15613, minBlobs: 1}],
+  frames: [
+    // Passes every stage.
+    {frame: 5, zones: [{id: 11, alarm: 144989, filter: 133210, blobs: 3,
+      maxBlob: 37972, largestBlob: 37972, score: 5}]},
+    // Through filtering, but the biggest blob is short of MinBlobPixels and
+    // was removed: maxBlob 0, largestBlob says how close it came.
+    {frame: 9, zones: [{id: 11, alarm: 30000, filter: 20000, blobs: 0,
+      maxBlob: 0, largestBlob: 12000, score: 0}]},
+    // Fails at the first stage; zma reports nothing further.
+    {frame: 12, zones: [{id: 11, alarm: 900, filter: 0, blobs: 0,
+      maxBlob: 0, largestBlob: 0, score: 0}]},
+    // Another zone's numbers must not leak in.
+    {frame: 13, zones: [{id: 12, alarm: 999999, filter: 999999, blobs: 9,
+      maxBlob: 999999, largestBlob: 999999, score: 9}]},
+  ],
+  done: {frames: 600, alarms: 1, alarmFrameCount: 3},
+};
+test('each stage counts only frames that got through the one before', () => {
+  const s = ZM.summarizeZoneTest(ZMA, 11);
+  assert.deepStrictEqual(s.passed, {alarm: 2, filter: 2, blob: 1, scored: 1});
+});
+test('peaks come from this zone only, blob from before removal', () => {
+  const s = ZM.summarizeZoneTest(ZMA, 11);
+  assert.deepStrictEqual(s.peak, {alarm: 144989, filter: 133210, blob: 37972});
+});
+test('AlarmedPixels stops counting after the first stage', () => {
+  const r = JSON.parse(JSON.stringify(ZMA));
+  r.zones[0].checkMethod = 1;
+  const s = ZM.summarizeZoneTest(r, 11);
+  assert.deepStrictEqual(s.passed, {alarm: 2, filter: 0, blob: 0, scored: 1});
+});
+test('a zone zma did not report, or no done line, gives nothing', () => {
+  assert.strictEqual(ZM.summarizeZoneTest(ZMA, 99), null);
+  assert.strictEqual(ZM.summarizeZoneTest({zones: ZMA.zones, frames: []}, 11), null);
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

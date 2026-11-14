@@ -151,8 +151,40 @@
     return {a: {x: x, y: y}, b: {x: x + w, y: y + h}};
   }
 
+  // Reduces zma's per-frame output to what the zone needs to show: for each
+  // stage, the peak value reached and how many frames got through it. Stages
+  // chain - a frame only counts for filtered if it passed alarmed - matching
+  // CheckAlarms, which stops at the first stage that fails.
+  function summarizeZoneTest(result, zoneId) {
+    const zone = (result.zones || []).filter(function(z) {
+      return z.id == zoneId;
+    })[0];
+    if (!zone || !result.done) return null;
+    const peak = {alarm: 0, filter: 0, blob: 0};
+    const passed = {alarm: 0, filter: 0, blob: 0, scored: 0};
+    (result.frames || []).forEach(function(f) {
+      const z = (f.zones || []).filter(function(fz) {
+        return fz.id == zoneId;
+      })[0];
+      if (!z) return;
+      peak.alarm = Math.max(peak.alarm, z.alarm);
+      peak.filter = Math.max(peak.filter, z.filter);
+      peak.blob = Math.max(peak.blob, z.largestBlob);
+      if (z.score > 0) passed.scored++;
+      if (z.alarm < zone.minAlarm) return;
+      passed.alarm++;
+      if (zone.checkMethod < 2) return;
+      if (z.filter < zone.minFilter) return;
+      passed.filter++;
+      if (zone.checkMethod < 3) return;
+      if (z.blobs >= Math.max(zone.minBlobs, 1) && z.maxBlob >= zone.minBlob) passed.blob++;
+    });
+    return {zone: zone, peak: peak, passed: passed, done: result.done};
+  }
+
   const api = {
     MIN_FILTER_KERNEL: MIN_FILTER_KERNEL,
+    summarizeZoneTest: summarizeZoneTest,
     shiftBox: shiftBox,
     savedObjectPixels: savedObjectPixels,
     boxSidesForArea: boxSidesForArea,
@@ -325,10 +357,20 @@
 
   // Threshold rects drawn inside the object box, and the field each is sized by.
   const THRESHOLD_RECTS = [
-    {id: 'objectAlarmRect', field: 'MinAlarmPixels'},
-    {id: 'objectFilterRect', field: 'MinFilterPixels'},
-    {id: 'objectBlobRect', field: 'MinBlobPixels'},
+    {id: 'objectAlarmRect', field: 'MinAlarmPixels', stage: 'alarm'},
+    {id: 'objectFilterRect', field: 'MinFilterPixels', stage: 'filter'},
+    {id: 'objectBlobRect', field: 'MinBlobPixels', stage: 'blob'},
   ];
+
+  // The last zma test, while it still describes the form. Each stage is a pass
+  // if any frame got through it; undefined means not tested or not applicable.
+  let testSummary = null;
+  function testVerdict(stage) {
+    if (!testSummary) return undefined;
+    const method = testSummary.zone.checkMethod;
+    if ((stage === 'filter' && method < 2) || (stage === 'blob' && method < 3)) return undefined;
+    return testSummary.passed[stage] > 0;
+  }
   const INNER_RECT_IDS = THRESHOLD_RECTS.map(function(t) {
     return t.id;
   }).concat(['objectKernelRect']);
@@ -419,7 +461,10 @@
       const pct = el && !el.disabled ? parseFloat(el.value) : NaN;
       const inner = (boxPx > 0) ? innerBox(box, pct / 100 * zonePx / boxPx) : null;
       if (inner) {
-        setRect(t.id, inner.a, inner.b);
+        const r = setRect(t.id, inner.a, inner.b);
+        const verdict = testVerdict(t.stage);
+        r.classList.toggle('testPass', verdict === true);
+        r.classList.toggle('testFail', verdict === false);
       } else {
         hideRects([t.id]);
       }
@@ -587,6 +632,7 @@
 
     // Refresh the pixel readouts beside each percentage field.
     updateAllPixelDisplays();
+    staleTest();
     drawThresholds(lastBox);
     return true;
   }
@@ -619,7 +665,98 @@
     }
   }
 
+  function fmt(n) {
+    return Math.round(n).toLocaleString();
+  }
+
+  function showTestResult(summary) {
+    const out = document.getElementById('zoneTestResult');
+    if (!out) return;
+    out.textContent = '';
+    if (!summary) return;
+    const z = summary.zone;
+    const d = summary.done;
+    const head = document.createElement('div');
+    head.textContent = d.frames + ' frames analysed - ' + summary.passed.scored +
+        ' scored, ' + d.alarms + ' alarm(s) (an alarm needs ' + d.alarmFrameCount +
+        ' scored frames in a row)';
+    out.appendChild(head);
+    const rows = [
+      ['alarm', 'swatchAlarm', 'Alarmed', summary.peak.alarm, z.minAlarm, 1],
+      ['filter', 'swatchFilter', 'Filtered', summary.peak.filter, z.minFilter, 2],
+      ['blob', 'swatchBlob', 'Largest blob', summary.peak.blob, z.minBlob, 3],
+    ];
+    rows.forEach(function(r) {
+      if (z.checkMethod < r[5]) return;
+      const line = document.createElement('div');
+      line.className = 'swatch ' + r[1] + (testVerdict(r[0]) ? ' testPass' : ' testFail');
+      line.textContent = r[2] + ': peak ' + fmt(r[3]) + ' px, needs ' + fmt(r[4]) +
+          ' px - ' + summary.passed[r[0]] + ' frame(s) passed';
+      out.appendChild(line);
+    });
+  }
+
+  // Any change to the form means the result no longer describes it.
+  function staleTest() {
+    if (!testSummary) return;
+    testSummary = null;
+    const out = document.getElementById('zoneTestResult');
+    if (out) {
+      const note = document.createElement('div');
+      note.className = 'testStale';
+      note.textContent = zoneObjectSizeStrings.testStale;
+      out.insertBefore(note, out.firstChild);
+    }
+  }
+
+  function runTest() {
+    const btn = document.getElementById('zoneTestBtn');
+    const select = document.getElementById('zoneTestEvent');
+    const out = document.getElementById('zoneTestResult');
+    const form = document.zoneForm;
+    const data = {
+      command: 'test',
+      mid: zone.MonitorId, zid: form.elements['zid'].value, eid: select.value,
+    };
+    // The form as it stands, saved or not. Disabled fields are left out, as a
+    // save would leave them out.
+    data['newZone[Coords]'] = getCoordString();
+    data['newZone[CheckMethod]'] = form.elements['newZone[CheckMethod]'].value;
+    MANAGED_FIELDS.forEach(function(field) {
+      const el = form.elements['newZone[' + field + ']'];
+      if (el && !el.disabled) data['newZone[' + field + ']'] = el.value;
+    });
+    btn.disabled = true;
+    testSummary = null;
+    out.textContent = zoneObjectSizeStrings.testRunning;
+    $j.getJSON(zmAuth.appendTo(thisUrl + '?view=request&request=zone'), data)
+        .done(function(resp) {
+          if (resp.result !== 'Ok') {
+            out.textContent = resp.message;
+            return;
+          }
+          testSummary = summarizeZoneTest(resp, data.zid);
+          showTestResult(testSummary);
+          refreshOverlay();
+        })
+        .fail(logAjaxFail)
+        .always(function() {
+          btn.disabled = false;
+        });
+  }
+
   function init() {
+    const testBtn = document.getElementById('zoneTestBtn');
+    if (testBtn) testBtn.addEventListener('click', runTest);
+    if (document.zoneForm) {
+      ['input', 'change'].forEach(function(type) {
+        document.zoneForm.addEventListener(type, function(evt) {
+          // Picking another event is not a settings change.
+          if (evt.target.id !== 'zoneTestEvent') staleTest();
+        });
+      });
+    }
+
     const btn = document.getElementById('objectSizeBtn');
     const feed = imageFeed();
     if (!btn || !feed) return;
