@@ -729,7 +729,14 @@
     btn.disabled = true;
     testSummary = null;
     out.textContent = zoneObjectSizeStrings.testRunning;
-    $j.getJSON(zmAuth.appendTo(thisUrl + '?view=request&request=zone'), data)
+    // Not getJSON: that takes the global ZM_WEB_AJAX_TIMEOUT (a few seconds)
+    // and zma needs longer than that for any real event.
+    $j.ajax({
+      url: zmAuth.appendTo(thisUrl + '?view=request&request=zone'),
+      data: data,
+      dataType: 'json',
+      timeout: 0,
+    })
         .done(function(resp) {
           if (resp.result !== 'Ok') {
             out.textContent = resp.message;
@@ -739,7 +746,10 @@
           showTestResult(testSummary);
           refreshOverlay();
         })
-        .fail(logAjaxFail)
+        .fail(function(jqxhr, textStatus, error) {
+          out.textContent = textStatus + (error ? ': ' + error : '');
+          logAjaxFail(jqxhr, textStatus, error);
+        })
         .always(function() {
           btn.disabled = false;
         });
