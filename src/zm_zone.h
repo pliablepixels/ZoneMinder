@@ -195,6 +195,11 @@ class Zone {
   inline void ClearAlarm() { was_alarmed = alarmed; alarmed = false; }
   inline Vector2 GetAlarmCentre() const { return stats.alarm_centre_; }
   inline unsigned int Score() const { return stats.score_; }
+  inline CheckMethod GetCheckMethod() const { return check_method; }
+  inline int MinAlarmPixels() const { return min_alarm_pixels; }
+  inline int MinFilterPixels() const { return min_filter_pixels; }
+  inline int MinBlobPixels() const { return min_blob_pixels; }
+  inline int MinBlobs() const { return min_blobs; }
 
   inline void ResetStats() {
     alarmed = false;
@@ -217,6 +222,12 @@ class Zone {
   static bool ParseCoords(const char *Coords, unsigned int width, unsigned int height, Polygon &polygon, bool &clamped);
   static size_t Count(const std::shared_ptr<Monitor> &monitor);
   static std::vector<Zone> Load(const std::shared_ptr<Monitor> &monitor);
+  // The columns Load selects, in the order LoadRow reads them. zma uses these
+  // to rebuild a zone from its saved row with some values replaced.
+  static const char *const kLoadColumns[];
+  static const size_t kLoadColumnCount;
+  static std::string LoadColumnsSql();
+  static bool LoadRow(const std::shared_ptr<Monitor> &monitor, char **dbrow, std::vector<Zone> &zones);
   //=================================================
   bool CheckOverloadCount();
   int GetOverloadCount();

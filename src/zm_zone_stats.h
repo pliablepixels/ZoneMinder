@@ -35,6 +35,7 @@ class ZoneStats {
     alarm_blobs_(0),
     min_blob_size_(0),
     max_blob_size_(0),
+    largest_blob_(0),
     score_(0) {};
 
   void Reset() {
@@ -45,6 +46,7 @@ class ZoneStats {
     alarm_blobs_ = 0;
     min_blob_size_ = 0;
     max_blob_size_ = 0;
+    largest_blob_ = 0;
     alarm_box_ = {};
     alarm_centre_ = {};
     score_ = 0;
@@ -81,6 +83,9 @@ class ZoneStats {
   int alarm_blobs_;
   int min_blob_size_;
   int max_blob_size_;
+  // Largest blob before MinBlobPixels/MaxBlobPixels removed any, so a near
+  // miss still shows how big the object came out. Not recorded in Stats.
+  int largest_blob_;
   Box alarm_box_;
   Vector2 alarm_centre_;
   unsigned int score_;

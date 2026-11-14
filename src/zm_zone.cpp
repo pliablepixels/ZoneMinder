@@ -612,6 +612,8 @@ bool Zone::CheckAlarms(const Image *delta_image) {
                   BlobStats *bs = &blob_stats[i];
                   // See if we can recycle one first, only if it's at least two rows up
                   if (bs->count && bs->hi_y < (y-1)) {
+                    // Two rows clear, so this blob is finished and its size final.
+                    if (bs->count > stats.largest_blob_) stats.largest_blob_ = bs->count;
                     if (
                       (min_blob_pixels && bs->count < min_blob_pixels)
                       ||
@@ -687,6 +689,7 @@ bool Zone::CheckAlarms(const Image *delta_image) {
       for (uint32 i = 1; i < kWhite; i++) {
         BlobStats *bs = &blob_stats[i];
         if (bs->count) {
+          if (bs->count > stats.largest_blob_) stats.largest_blob_ = bs->count;
           if ((min_blob_pixels && bs->count < min_blob_pixels) || (max_blob_pixels && bs->count > max_blob_pixels)) {
             if (( monitor->GetOptSaveJPEGs() > 1 ) || config.record_diag_images) {
               for (int sy = bs->lo_y; sy <= bs->hi_y; sy++) {
@@ -1060,13 +1063,28 @@ size_t Zone::Count(const std::shared_ptr<Monitor> &monitor) {
   return count;
 }
 
+// Order matters: LoadRow reads the row by position.
+const char *const Zone::kLoadColumns[] = {
+  "Id", "Name", "Type+0", "Units", "Coords", "AlarmRGB", "CheckMethod+0",
+  "MinPixelThreshold", "MaxPixelThreshold", "MinAlarmPixels", "MaxAlarmPixels",
+  "FilterX", "FilterY", "MinFilterPixels", "MaxFilterPixels",
+  "MinBlobPixels", "MaxBlobPixels", "MinBlobs", "MaxBlobs",
+  "OverloadFrames", "ExtendAlarmFrames",
+};
+const size_t Zone::kLoadColumnCount = sizeof(Zone::kLoadColumns) / sizeof(Zone::kLoadColumns[0]);
+
+std::string Zone::LoadColumnsSql() {
+  std::string cols;
+  for (size_t i = 0; i < kLoadColumnCount; i++) {
+    if (i) cols += ",";
+    cols += kLoadColumns[i];
+  }
+  return cols;
+}
+
 std::vector<Zone> Zone::Load(const std::shared_ptr<Monitor> &monitor) {
-  std::string sql = stringtf("SELECT Id,Name,Type+0,Units,Coords,AlarmRGB,CheckMethod+0,"
-                             "MinPixelThreshold,MaxPixelThreshold,MinAlarmPixels,MaxAlarmPixels,"
-                             "FilterX,FilterY,MinFilterPixels,MaxFilterPixels,"
-                             "MinBlobPixels,MaxBlobPixels,MinBlobs,MaxBlobs,"
-                             "OverloadFrames,ExtendAlarmFrames"
-                             " FROM Zones WHERE MonitorId = %d ORDER BY Type, Id", monitor->Id());
+  std::string sql = stringtf("SELECT %s FROM Zones WHERE MonitorId = %d ORDER BY Type, Id",
+                             LoadColumnsSql().c_str(), monitor->Id());
 
   MYSQL_RES *result = zmDbFetch(sql);
   if (!result) {
@@ -1080,6 +1098,16 @@ std::vector<Zone> Zone::Load(const std::shared_ptr<Monitor> &monitor) {
   zones.reserve(n_zones);
 
   for (MYSQL_ROW dbrow = mysql_fetch_row(result); dbrow; dbrow = mysql_fetch_row(result)) {
+    LoadRow(monitor, dbrow, zones);
+  }
+  mysql_free_result(result);
+  return zones;
+} // end std::vector<Zone> Zone::Load(Monitor *monitor)
+
+// One row in kLoadColumns order, as Load fetches it. Appends the zone to zones;
+// false when the polygon cannot be parsed and the row is skipped.
+bool Zone::LoadRow(const std::shared_ptr<Monitor> &monitor, char **dbrow, std::vector<Zone> &zones) {
+  {
     int col = 0;
 
     int Id = atoi(dbrow[col++]);
@@ -1128,7 +1156,7 @@ std::vector<Zone> Zone::Load(const std::shared_ptr<Monitor> &monitor) {
     if (!ParseCoords(Coords, monitor->Width(), monitor->Height(), polygon, clamped)) {
       Error("Unable to parse polygon string '%s' for zone %d/%s for monitor %s, ignoring",
             Coords, Id, Name, monitor->Name());
-      continue;
+      return false;
     }
     if (clamped) {
       Warning("Zone %d/%s for monitor %s has coordinates '%s' outside %ux%u, clamping",
@@ -1169,10 +1197,9 @@ std::vector<Zone> Zone::Load(const std::shared_ptr<Monitor> &monitor) {
         MinBlobPixels, MaxBlobPixels, MinBlobs, MaxBlobs,
         OverloadFrames, ExtendAlarmFrames);
     }
-  } // end foreach row
-  mysql_free_result(result);
-  return zones;
-} // end std::vector<Zone> Zone::Load(Monitor *monitor)
+  }
+  return true;
+} // end Zone::LoadRow
 
 std::string Zone::DumpSettings(bool /*verbose*/) const {
   std::string result;
