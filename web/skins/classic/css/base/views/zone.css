@@ -219,6 +219,27 @@
     vector-effect: non-scaling-stroke;
 }
 
+/* Drag the box to move it. fill is none, so without this only the stroke
+   would take the press. */
+.zones #objectRect {
+    pointer-events: all;
+    cursor: move;
+    touch-action: none;
+}
+
+/* Bottom-right corner handle: drag to resize. */
+#imageFrame #objectResizeHandle {
+    position: absolute;
+    z-index: 6;
+    width: 12px;
+    height: 12px;
+    transform: translate(-50%, -50%);
+    background: #ffff00;
+    border: 1px solid #000000;
+    cursor: nwse-resize;
+    touch-action: none;
+}
+
 /* Rebuilt from saved thresholds rather than drawn: dashed, as an estimate. */
 .zones #objectRect.saved {
     stroke-dasharray: 6 4;
@@ -230,6 +251,8 @@
 .zones #objectFilterRect,
 .zones #objectBlobRect,
 .zones #objectKernelRect {
+    /* Presses fall through to the svg, not #objectRect, so keep them off. */
+    pointer-events: none;
     stroke-width: 1px;
     vector-effect: non-scaling-stroke;
 }

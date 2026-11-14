@@ -140,8 +140,20 @@
     return {a: {x: cx - hw, y: cy - hh}, b: {x: cx + hw, y: cy + hh}};
   }
 
+  // The box moved by dx, dy, stopped at the frame edges so its size is kept.
+  function shiftBox(box, dx, dy, maxX, maxY) {
+    const x0 = Math.min(box.a.x, box.b.x);
+    const y0 = Math.min(box.a.y, box.b.y);
+    const w = Math.abs(box.b.x - box.a.x);
+    const h = Math.abs(box.b.y - box.a.y);
+    const x = Math.min(Math.max(x0 + dx, 0), Math.max(maxX - w, 0));
+    const y = Math.min(Math.max(y0 + dy, 0), Math.max(maxY - h, 0));
+    return {a: {x: x, y: y}, b: {x: x + w, y: y + h}};
+  }
+
   const api = {
     MIN_FILTER_KERNEL: MIN_FILTER_KERNEL,
+    shiftBox: shiftBox,
     savedObjectPixels: savedObjectPixels,
     boxSidesForArea: boxSidesForArea,
     innerBox: innerBox,
@@ -170,6 +182,10 @@
   let undoSnapshot = null;
   // The last box measured, so a change to the fraction can re-derive from it.
   let lastBox = null;
+  // The box on screen, measured or rebuilt from the saved thresholds.
+  let shownBox = null;
+  // Where a rebuilt box was moved to, so redraws keep it there.
+  let savedCenter = null;
 
   const RATIO_INPUTS = [
     {key: 'fraction', id: 'objectFraction', cookie: 'zmZoneObjectFraction'},
@@ -339,21 +355,50 @@
     });
   }
 
+  // A div rather than an SVG rect, for the same reason as the label: the
+  // stretched viewBox would distort it.
+  function resizeHandle() {
+    let el = document.getElementById('objectResizeHandle');
+    if (!el) {
+      const feed = imageFeed();
+      if (!feed) return null;
+      el = document.createElement('div');
+      el.id = 'objectResizeHandle';
+      el.style.display = 'none';
+      feed.appendChild(el);
+    }
+    return el;
+  }
+
   // saved: the box was rebuilt from stored thresholds rather than drawn.
   function drawRect(a, b, saved) {
     const r = setRect('objectRect', a, b);
     if (!r) return;
     r.classList.toggle('saved', !!saved);
+    shownBox = {
+      a: {x: Math.min(a.x, b.x), y: Math.min(a.y, b.y)},
+      b: {x: Math.max(a.x, b.x), y: Math.max(a.y, b.y)},
+      saved: !!saved,
+    };
     // Stale until drawThresholds runs for this box.
     hideRects(INNER_RECT_IDS);
-    drawSizeLabel(Math.min(a.x, b.x), Math.min(a.y, b.y),
-        Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+    drawSizeLabel(shownBox.a.x, shownBox.a.y,
+        shownBox.b.x - shownBox.a.x, shownBox.b.y - shownBox.a.y);
+    const handle = resizeHandle();
+    if (handle) {
+      handle.style.left = shownBox.b.x + '%';
+      handle.style.top = shownBox.b.y + '%';
+      handle.style.display = '';
+    }
   }
 
   function hideRect() {
     hideRects(['objectRect'].concat(INNER_RECT_IDS));
-    const el = document.getElementById('objectSizeLabel');
-    if (el) el.style.display = 'none';
+    shownBox = null;
+    ['objectSizeLabel', 'objectResizeHandle'].forEach(function(id) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
   }
 
   // Each Min threshold as a share of the box, from whatever the fields hold
@@ -405,9 +450,13 @@
         zonePixels(), currentRatios().fraction);
     const sides = boxSidesForArea(area, W / H);
     if (!sides) return;
-    const box = boxPercentForPixels(sides.w, sides.h,
+    let box = boxPercentForPixels(sides.w, sides.h,
         {width: W, height: H, maxX: maxX, maxY: maxY});
     if (!box) return;
+    if (savedCenter) {
+      box = shiftBox(box, savedCenter.x - (box.a.x + box.b.x) / 2,
+          savedCenter.y - (box.a.y + box.b.y) / 2, maxX, maxY);
+    }
     drawRect(box.a, box.b, true);
     drawThresholds(box);
   }
@@ -854,6 +903,80 @@
     // A cancelled pointer - the browser taking over for a scroll or a gesture
     // - never sends pointerup, and would otherwise leave the drag running.
     feed.addEventListener('pointercancel', endDrag);
+
+    // Moving and resizing the box on screen. Moving keeps the area, so the
+    // thresholds stand; resizing is a new measurement, anchored at the
+    // opposite corner, and goes through apply() like a drawn box.
+    let edit = null;
+    function startEdit(evt, mode) {
+      if (!shownBox) return false;
+      if (evt.pointerType === 'mouse' && evt.button !== 0) return false;
+      if (mode === 'resize' && !zoneIsMeasurable()) return false;
+      evt.preventDefault();
+      evt.stopPropagation();
+      evt.currentTarget.setPointerCapture(evt.pointerId);
+      edit = {mode: mode, from: toPercent(evt, feed), box: shownBox};
+      return true;
+    }
+    function moveEdit(evt, done) {
+      if (!edit) return;
+      const at = toPercent(evt, feed);
+      if (edit.mode === 'move') {
+        const box = shiftBox(edit.box, at.x - edit.from.x, at.y - edit.from.y,
+            maxX, maxY);
+        drawRect(box.a, box.b, edit.box.saved);
+        if (edit.box.saved) {
+          savedCenter = {x: (box.a.x + box.b.x) / 2, y: (box.a.y + box.b.y) / 2};
+        } else {
+          lastBox = {a: box.a, b: box.b};
+        }
+        drawThresholds(box);
+      } else {
+        drawRect(edit.box.a, at);
+        if (done) {
+          finishDrag(edit.box.a, at);
+          // Tuning the ratios against the new box needs the panel.
+          const panel = document.getElementById('rectangleSettings');
+          if (panel && lastBox) panel.style.display = '';
+        } else {
+          apply(edit.box.a, at);
+        }
+      }
+      if (done) edit = null;
+    }
+
+    const rect = document.getElementById('objectRect');
+    if (rect) {
+      rect.addEventListener('pointerdown', function(evt) {
+        // Armed, a press anywhere starts a new box - let it reach the feed.
+        if (armed) return;
+        startEdit(evt, 'move');
+      });
+      rect.addEventListener('pointermove', function(evt) {
+        moveEdit(evt, false);
+      });
+      rect.addEventListener('pointerup', function(evt) {
+        moveEdit(evt, true);
+      });
+      rect.addEventListener('pointercancel', function(evt) {
+        moveEdit(evt, true);
+      });
+    }
+    const handle = resizeHandle();
+    if (handle) {
+      handle.addEventListener('pointerdown', function(evt) {
+        startEdit(evt, 'resize');
+      });
+      handle.addEventListener('pointermove', function(evt) {
+        moveEdit(evt, false);
+      });
+      handle.addEventListener('pointerup', function(evt) {
+        moveEdit(evt, true);
+      });
+      handle.addEventListener('pointercancel', function(evt) {
+        moveEdit(evt, true);
+      });
+    }
 
     showSavedObject();
   }

@@ -374,5 +374,20 @@ test('an empty threshold draws nothing', () => {
   [0, NaN, -1].forEach((v) => assert.strictEqual(ZM.innerBox(OUTER, v), null));
 });
 
+console.log('shiftBox');
+test('a move inside the frame moves by exactly that much', () => {
+  assert.deepStrictEqual(ZM.shiftBox(OUTER, 5, -10, 100, 100),
+      {a: {x: 15, y: 10}, b: {x: 55, y: 50}});
+});
+test('a move past an edge stops at it and keeps the size', () => {
+  // Size must survive: the thresholds were derived from the area.
+  assert.deepStrictEqual(ZM.shiftBox(OUTER, 200, -200, 100, 100),
+      {a: {x: 60, y: 0}, b: {x: 100, y: 40}});
+});
+test('a reversed box is moved as its normalised self', () => {
+  const rev = {a: OUTER.b, b: OUTER.a};
+  assert.deepStrictEqual(ZM.shiftBox(rev, 0, 0, 100, 100), OUTER);
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);
