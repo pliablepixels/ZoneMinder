@@ -384,6 +384,9 @@
     hideRects(INNER_RECT_IDS);
     drawSizeLabel(shownBox.a.x, shownBox.a.y,
         shownBox.b.x - shownBox.a.x, shownBox.b.y - shownBox.a.y);
+    // Whichever box is on screen, the size fields describe it.
+    showBoxSize((shownBox.b.x - shownBox.a.x) / maxX * monitorData[0].width,
+        (shownBox.b.y - shownBox.a.y) / maxY * monitorData[0].height);
     const handle = resizeHandle();
     if (handle) {
       handle.style.left = shownBox.b.x + '%';
@@ -947,9 +950,9 @@
 
     const rect = document.getElementById('objectRect');
     if (rect) {
+      // Armed or not, a press on the box moves it; startEdit stops it reaching
+      // the feed, so only a press outside the box starts a new one.
       rect.addEventListener('pointerdown', function(evt) {
-        // Armed, a press anywhere starts a new box - let it reach the feed.
-        if (armed) return;
         startEdit(evt, 'move');
       });
       rect.addEventListener('pointermove', function(evt) {
