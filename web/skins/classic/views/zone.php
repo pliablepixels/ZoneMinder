@@ -413,6 +413,13 @@ if ( count($other_zones) ) {
                 <tr id="replayControls" style="display:none">
                   <td>
                     <canvas id="replayTimeline" height="24" title="<?php echo translate('ZoneReplayTimeline') ?>"></canvas>
+                    <div id="replayLegend">
+                      <span class="legendScored"><?php echo translate('ZoneReplayScored') ?></span>
+                      <span class="swatchAlarm"><?php echo translate('ZoneReplayFailAlarm') ?></span>
+                      <span class="swatchFilter"><?php echo translate('ZoneReplayFailFilter') ?></span>
+                      <span class="swatchBlob"><?php echo translate('ZoneReplayFailBlob') ?></span>
+                      <span class="legendNone"><?php echo translate('ZoneReplayNoChange') ?></span>
+                    </div>
                     <div>
                       <button type="button" id="replayPrevBtn" class="btn btn-normal" title="<?php echo translate('ZoneReplayPrev') ?>"><i class="material-icons md-18">skip_previous</i></button>
                       <button type="button" id="replayPlayBtn" class="btn btn-normal" title="<?php echo translate('Play') ?>"><i class="material-icons md-18">play_arrow</i></button>

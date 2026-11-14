@@ -291,6 +291,21 @@
     cursor: pointer;
 }
 #replayFrameInfo { margin-left: 0.5em; }
+#replayLegend { font-size: 0.85em; margin: 2px 0; }
+#replayLegend span { margin-right: 0.8em; white-space: nowrap; }
+#replayLegend span::before {
+    content: "";
+    display: inline-block;
+    width: 0.8em;
+    height: 0.8em;
+    margin-right: 0.3em;
+    vertical-align: middle;
+}
+#replayLegend .legendScored::before { background: #00c000; }
+#replayLegend .swatchAlarm::before { background: #ffa500; }
+#replayLegend .swatchFilter::before { background: #00c8ff; }
+#replayLegend .swatchBlob::before { background: #ff00ff; }
+#replayLegend .legendNone::before { background: rgba(128,128,128,0.25); }
 
 /* After a zma test: thick green where some frame got through the stage, red
    where none did. */
