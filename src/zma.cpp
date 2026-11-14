@@ -745,15 +745,22 @@ int main(int argc, char *argv[]) {
       for (const Zone &zone : monitor->Zones()) {
         const ZoneStats &st = zone.GetStats();
         if (!st.alarm_pixels_) continue;
+        const Box &mb = st.motion_box_;
+        const Box &bb = st.largest_blob_box_;
         zones_json += stringtf("%s{\"id\":%u,\"alarm\":%u,\"filter\":%d,\"blob\":%d,"
-                               "\"blobs\":%d,\"maxBlob\":%d,\"largestBlob\":%d,\"score\":%u}",
+                               "\"blobs\":%d,\"maxBlob\":%d,\"largestBlob\":%d,\"score\":%u,"
+                               "\"motionBox\":[%d,%d,%d,%d],\"blobBox\":[%d,%d,%d,%d]}",
                                zones_json.empty() ? "" : ",", zone.Id(), st.alarm_pixels_,
                                st.alarm_filter_pixels_, st.alarm_blob_pixels_, st.alarm_blobs_,
-                               st.max_blob_size_, st.largest_blob_, zone.Score());
+                               st.max_blob_size_, st.largest_blob_, zone.Score(),
+                               mb.Lo().x_, mb.Lo().y_, mb.Hi().x_, mb.Hi().y_,
+                               bb.Lo().x_, bb.Lo().y_, bb.Hi().x_, bb.Hi().y_);
       }
       if (!zones_json.empty()) {
-        printf("{\"type\":\"frame\",\"frame\":%d,\"score\":%u,\"zones\":[%s]}\n",
-               fd.id, score, zones_json.c_str());
+        // t: seconds into the event, the position zma decoded the frame from,
+        // so a player can seek to the same frame.
+        printf("{\"type\":\"frame\",\"frame\":%d,\"t\":%.3f,\"score\":%u,\"zones\":[%s]}\n",
+               fd.id, FPSeconds(fd.offset).count(), score, zones_json.c_str());
       }
     }
 

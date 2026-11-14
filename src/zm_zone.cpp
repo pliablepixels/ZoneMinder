@@ -334,6 +334,7 @@ bool Zone::CheckAlarms(const Image *delta_image) {
 
   if (pixel_diff_count && stats.alarm_pixels_)
     stats.pixel_diff_ = pixel_diff_count/stats.alarm_pixels_;
+  if (stats.alarm_pixels_) stats.motion_box_ = alarmed_box;
 
   Debug(5, "Got %d alarmed pixels, need %d -> %d, avg pixel diff %d",
         stats.alarm_pixels_, min_alarm_pixels, max_alarm_pixels, stats.pixel_diff_);
@@ -425,6 +426,7 @@ bool Zone::CheckAlarms(const Image *delta_image) {
         }  // end for x
       }  // end foreach y line
       if (stats.alarm_filter_pixels_) {
+        stats.motion_box_ = Box(Vector2(filter_lo_x, filter_lo_y), Vector2(filter_hi_x, filter_hi_y));
         alarm_lo_x = filter_lo_x;
         alarm_hi_x = filter_hi_x;
         alarm_lo_y = filter_lo_y;
@@ -613,7 +615,10 @@ bool Zone::CheckAlarms(const Image *delta_image) {
                   // See if we can recycle one first, only if it's at least two rows up
                   if (bs->count && bs->hi_y < (y-1)) {
                     // Two rows clear, so this blob is finished and its size final.
-                    if (bs->count > stats.largest_blob_) stats.largest_blob_ = bs->count;
+                    if (bs->count > stats.largest_blob_) {
+                      stats.largest_blob_ = bs->count;
+                      stats.largest_blob_box_ = Box(Vector2(bs->lo_x, bs->lo_y), Vector2(bs->hi_x, bs->hi_y));
+                    }
                     if (
                       (min_blob_pixels && bs->count < min_blob_pixels)
                       ||
@@ -689,7 +694,10 @@ bool Zone::CheckAlarms(const Image *delta_image) {
       for (uint32 i = 1; i < kWhite; i++) {
         BlobStats *bs = &blob_stats[i];
         if (bs->count) {
-          if (bs->count > stats.largest_blob_) stats.largest_blob_ = bs->count;
+          if (bs->count > stats.largest_blob_) {
+            stats.largest_blob_ = bs->count;
+            stats.largest_blob_box_ = Box(Vector2(bs->lo_x, bs->lo_y), Vector2(bs->hi_x, bs->hi_y));
+          }
           if ((min_blob_pixels && bs->count < min_blob_pixels) || (max_blob_pixels && bs->count > max_blob_pixels)) {
             if (( monitor->GetOptSaveJPEGs() > 1 ) || config.record_diag_images) {
               for (int sy = bs->lo_y; sy <= bs->hi_y; sy++) {
