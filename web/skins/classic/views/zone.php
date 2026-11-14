@@ -352,21 +352,21 @@ if ( count($other_zones) ) {
 									</td>
 								</tr>
 								<tr>
-									<th scope="row" class="swatch alarm"><?php echo translate('RectangleAlarmedArea') ?></th>
+									<th scope="row" class="swatch swatchAlarm"><?php echo translate('RectangleAlarmedArea') ?></th>
 									<td>
 										<input type="number" id="objectFraction" value="<?php echo $rectangle_ratios['objectFraction']['value'] ?>" min="1" max="100" step="1"/>%
 										<span class="ratioHint"><?php echo translate('RectangleOfRectangle') ?></span>
 									</td>
 								</tr>
 								<tr>
-									<th scope="row" class="swatch filter"><?php echo translate('RectangleFilteredArea') ?></th>
+									<th scope="row" class="swatch swatchFilter"><?php echo translate('RectangleFilteredArea') ?></th>
 									<td>
 										<input type="number" id="objectFilterRatio" value="<?php echo $rectangle_ratios['objectFilterRatio']['value'] ?>" min="1" max="100" step="1"/>%
 										<span class="ratioHint"><?php echo translate('RectangleOfAlarmed') ?></span>
 									</td>
 								</tr>
 								<tr>
-									<th scope="row" class="swatch blob"><?php echo translate('RectangleBlobArea') ?></th>
+									<th scope="row" class="swatch swatchBlob"><?php echo translate('RectangleBlobArea') ?></th>
 									<td>
 										<input type="number" id="objectBlobRatio" value="<?php echo $rectangle_ratios['objectBlobRatio']['value'] ?>" min="1" max="100" step="1"/>%
 										<span class="ratioHint"><?php echo translate('RectangleOfFiltered') ?></span>

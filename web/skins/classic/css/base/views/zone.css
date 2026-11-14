@@ -262,9 +262,9 @@
 .zones #objectKernelRect { fill: #ffffff; stroke: #000000; }
 
 #rectangleSettings th.swatch { border-left: 4px solid transparent; }
-#rectangleSettings th.swatch.alarm { border-left-color: #ffa500; }
-#rectangleSettings th.swatch.filter { border-left-color: #00c8ff; }
-#rectangleSettings th.swatch.blob { border-left-color: #ff00ff; }
+#rectangleSettings th.swatch.swatchAlarm { border-left-color: #ffa500; }
+#rectangleSettings th.swatch.swatchFilter { border-left-color: #00c8ff; }
+#rectangleSettings th.swatch.swatchBlob { border-left-color: #ff00ff; }
 
 #zonePoints table table th,
 #zonePoints table table td {
