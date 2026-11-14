@@ -25,6 +25,7 @@ if ( !($mid and canEdit('Monitors', $mid)) ) {
 }
 
 $zid = (!empty($_REQUEST['zid'])) ? validInt($_REQUEST['zid']) : 0;
+require_once('includes/Event.php');
 
 $hicolor = '0x00ff00'; // Green
 
@@ -143,7 +144,7 @@ foreach ($rectangle_ratios as $id => $spec) {
 
 # Testing the form's settings against a recording, through zma --dry-run.
 # Disabled, with the reason as its title, when it cannot work.
-$test_events = dbFetchAll('SELECT Id, StartDateTime, Length, Cause FROM Events WHERE MonitorId=? ORDER BY Id DESC LIMIT 25', NULL, array($monitor->Id()));
+$test_events = ZM\Event::find(array('MonitorId'=>$monitor->Id()), array('order'=>'Id DESC', 'limit'=>25));
 $test_disabled = '';
 if ( !$zid ) {
   $test_disabled = translate('ZoneTestNeedSave');
@@ -190,6 +191,7 @@ echo getNavBarHTML();
         <input type="hidden" name="newZone[NumCoords]" value="<?php echo count($zone['Points']) ?>"/>
         <input type="hidden" name="newZone[Coords]" value="<?php echo $zone['Coords'] ?>"/>
         <input type="hidden" name="newZone[AlarmRGB]"/>
+        <input type="hidden" name="newZone[ObjectCoords]" value="<?php echo isset($zone['ObjectCoords']) ? validHtmlStr($zone['ObjectCoords']) : '' ?>"/>
 
 				  <div id="imageAndPoints">
             <style>#imageFeed<?php echo $monitor->Id() ?> { aspect-ratio: <?php echo $monitor->ViewWidth() ?> / <?php echo $monitor->ViewHeight() ?>; }</style>
@@ -219,6 +221,8 @@ if ( count($other_zones) ) {
                 <rect id="objectFilterRect" x="0" y="0" width="0" height="0" style="display:none"><title><?php echo translate('RectangleFilteredArea') ?></title></rect>
                 <rect id="objectBlobRect" x="0" y="0" width="0" height="0" style="display:none"><title><?php echo translate('RectangleBlobArea') ?></title></rect>
                 <rect id="objectKernelRect" x="0" y="0" width="0" height="0" style="display:none"><title><?php echo translate('ZoneFilterSize') ?></title></rect>
+                <rect id="replayMotionRect" x="0" y="0" width="0" height="0" style="display:none"/>
+                <rect id="replayBlobRect" x="0" y="0" width="0" height="0" style="display:none"/>
                 Sorry, your browser does not support inline SVG
               </svg>
               <button type="button" id="objectImageReplaceBtn" class="btn btn-normal" style="display:none" title="<?php echo translate('ObjectImageLoad') ?>">
@@ -392,8 +396,11 @@ if ( count($other_zones) ) {
                 <tr>
                   <td>
                     <select id="zoneTestEvent" aria-label="<?php echo translate('Event') ?>"<?php echo $test_disabled ? ' disabled' : '' ?>>
-<?php foreach ( $test_events as $test_event ) { ?>
-                      <option value="<?php echo $test_event['Id'] ?>"><?php echo $test_event['Id'].' - '.validHtmlStr($test_event['StartDateTime']).' ('.round($test_event['Length']).'s, '.validHtmlStr($test_event['Cause']).')' ?></option>
+<?php foreach ( $test_events as $test_event ) {
+  # A video to replay the result over; JPEG-only events can be tested but not replayed.
+  $video = $test_event->DefaultVideo() ? $test_event->getStreamSrc(array('mode'=>'mp4')) : '';
+?>
+                      <option value="<?php echo $test_event->Id() ?>" data-video="<?php echo validHtmlStr($video) ?>"><?php echo $test_event->Id().' - '.validHtmlStr($test_event->StartDateTime()).' ('.round($test_event->Length()).'s, '.validHtmlStr($test_event->Cause()).')' ?></option>
 <?php } ?>
                     </select>
                     <!-- A disabled button gets no hover, so the reason sits on a wrapper. -->
@@ -403,6 +410,18 @@ if ( count($other_zones) ) {
                   </td>
                 </tr>
                 <tr><td id="zoneTestResult"></td></tr>
+                <tr id="replayControls" style="display:none">
+                  <td>
+                    <canvas id="replayTimeline" height="24" title="<?php echo translate('ZoneReplayTimeline') ?>"></canvas>
+                    <div>
+                      <button type="button" id="replayPrevBtn" class="btn btn-normal" title="<?php echo translate('ZoneReplayPrev') ?>"><i class="material-icons md-18">skip_previous</i></button>
+                      <button type="button" id="replayPlayBtn" class="btn btn-normal" title="<?php echo translate('Play') ?>"><i class="material-icons md-18">play_arrow</i></button>
+                      <button type="button" id="replayNextBtn" class="btn btn-normal" title="<?php echo translate('ZoneReplayNext') ?>"><i class="material-icons md-18">skip_next</i></button>
+                      <button type="button" id="replayCloseBtn" class="btn btn-normal" title="<?php echo translate('ZoneReplayClose') ?>"><i class="material-icons md-18">close</i></button>
+                      <span id="replayFrameInfo"></span>
+                    </div>
+                  </td>
+                </tr>
               </tbody>
             </table>
             <div id="zonePoints">

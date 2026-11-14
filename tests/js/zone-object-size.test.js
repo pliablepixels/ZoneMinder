@@ -430,5 +430,54 @@ test('a zone zma did not report, or no done line, gives nothing', () => {
   assert.strictEqual(ZM.summarizeZoneTest({zones: ZMA.zones, frames: []}, 11), null);
 });
 
+console.log('frameVerdict / stageResults');
+const Z = ZMA.zones[0];
+test('the first stage that falls short is the one reported', () => {
+  assert.strictEqual(ZM.frameVerdict(ZMA.frames[2].zones[0], Z).failedAt, 'alarm');
+  assert.strictEqual(ZM.frameVerdict(ZMA.frames[1].zones[0], Z).failedAt, 'blob');
+  assert.strictEqual(ZM.frameVerdict(ZMA.frames[0].zones[0], Z).failedAt, null);
+});
+test('stages after the failure are not reached, not failed', () => {
+  assert.deepStrictEqual(ZM.stageResults({failedAt: 'alarm'}, 3), {alarm: false});
+  assert.deepStrictEqual(ZM.stageResults({failedAt: 'blob'}, 3),
+      {alarm: true, filter: true, blob: false});
+  assert.deepStrictEqual(ZM.stageResults({failedAt: null}, 2), {alarm: true, filter: true});
+});
+
+console.log('frameAt');
+const FR = [{t: 0.1}, {t: 0.2}, {t: 0.5}];
+test('nearest frame within tolerance, either side', () => {
+  assert.strictEqual(ZM.frameAt(FR, 0.21, 0.05), FR[1]);
+  assert.strictEqual(ZM.frameAt(FR, 0.48, 0.05), FR[2]);
+  assert.strictEqual(ZM.frameAt(FR, 0.0, 0.1), FR[0]);
+});
+test('a gap with no motion gives no frame', () => {
+  assert.strictEqual(ZM.frameAt(FR, 0.35, 0.05), null);
+  assert.strictEqual(ZM.frameAt([], 1, 1), null);
+});
+
+console.log('pixelBoxToPercent');
+test('inclusive pixel corners become percent of the frame', () => {
+  assert.deepStrictEqual(ZM.pixelBoxToPercent([0, 0, 99, 49], 200, 100),
+      {a: {x: 0, y: 0}, b: {x: 50, y: 50}});
+});
+test('an unset box draws nothing', () => {
+  assert.strictEqual(ZM.pixelBoxToPercent([0, 0, 0, 0], 200, 100), null);
+  assert.strictEqual(ZM.pixelBoxToPercent(undefined, 200, 100), null);
+});
+
+console.log('boxToCoords / coordsToBox');
+test('a box round-trips through ObjectCoords, corners normalised', () => {
+  const s = ZM.boxToCoords({a: {x: 40.5, y: 60}, b: {x: 10, y: 20.25}});
+  assert.strictEqual(s, '10.00,20.25 40.50,60.00');
+  assert.deepStrictEqual(ZM.coordsToBox(s), {a: {x: 10, y: 20.25}, b: {x: 40.5, y: 60}});
+});
+test('no box, or a malformed or empty one, reads as none', () => {
+  assert.strictEqual(ZM.boxToCoords(null), '');
+  ['', null, '1,2', '10,10 5,20', '0,0 101,50', '1,2 3,4 5,6', 'a,b c,d'].forEach((v) => {
+    assert.strictEqual(ZM.coordsToBox(v), null, String(v));
+  });
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

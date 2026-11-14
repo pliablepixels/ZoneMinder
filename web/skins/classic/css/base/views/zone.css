@@ -261,6 +261,37 @@
 .zones #objectBlobRect { fill: rgba(255, 0, 255, 0.2); stroke: #ff00ff; }
 .zones #objectKernelRect { fill: #ffffff; stroke: #000000; }
 
+/* Event video replayed in place of the live view, in exactly the box the
+   stream occupies so zma's capture-pixel boxes land where they belong. */
+#imageFrame #replayVideo {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    z-index: 1;
+}
+
+/* zma's boxes for the frame on screen: where the change was (dashed) and the
+   largest blob (solid). Coloured pass/fail below; never take a press. */
+.zones #replayMotionRect,
+.zones #replayBlobRect {
+    fill: none;
+    stroke: #ffffff;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
+}
+.zones #replayMotionRect { stroke-dasharray: 4 3; }
+
+#replayTimeline {
+    display: block;
+    width: 100%;
+    height: 24px;
+    cursor: pointer;
+}
+#replayFrameInfo { margin-left: 0.5em; }
+
 /* After a zma test: thick green where some frame got through the stage, red
    where none did. */
 .zones .testPass { stroke: #00c000 !important; stroke-width: 3px !important; }

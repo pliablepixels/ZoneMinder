@@ -151,10 +151,84 @@
     return {a: {x: x, y: y}, b: {x: x + w, y: y + h}};
   }
 
+  // The stage a frame's zone stats failed at, or null if it got through them
+  // all - CheckAlarms stops at the first stage that fails. Stages the check
+  // method skips are not tested.
+  function frameVerdict(fz, zone) {
+    let failedAt = null;
+    if (!fz.alarm || fz.alarm < zone.minAlarm) {
+      failedAt = 'alarm';
+    } else if (zone.checkMethod >= 2 && fz.filter < zone.minFilter) {
+      failedAt = 'filter';
+    } else if (zone.checkMethod >= 3 &&
+        !(fz.blobs >= Math.max(zone.minBlobs, 1) && fz.maxBlob >= zone.minBlob)) {
+      failedAt = 'blob';
+    }
+    return {failedAt: failedAt, scored: fz.score > 0};
+  }
+
+  // Per stage: true passed, false failed, undefined not reached or not tested.
+  function stageResults(verdict, checkMethod) {
+    const order = ['alarm', 'filter', 'blob'];
+    const out = {};
+    let failed = false;
+    order.forEach(function(stage, i) {
+      if (checkMethod < i + 1 || failed) return;
+      if (verdict.failedAt === stage) {
+        out[stage] = false;
+        failed = true;
+      } else {
+        out[stage] = true;
+      }
+    });
+    return out;
+  }
+
+  // The frame closest to t seconds, if one is within tol. frames sorted by t.
+  function frameAt(frames, t, tol) {
+    let lo = 0;
+    let hi = frames.length - 1;
+    if (hi < 0) return null;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (frames[mid].t < t) lo = mid + 1; else hi = mid;
+    }
+    let best = lo;
+    if (lo > 0 && Math.abs(frames[lo - 1].t - t) <= Math.abs(frames[lo].t - t)) best = lo - 1;
+    return Math.abs(frames[best].t - t) <= tol ? frames[best] : null;
+  }
+
+  // zma reports boxes as inclusive capture-pixel corners; an all-zero box is
+  // one that was never set.
+  function pixelBoxToPercent(box, width, height) {
+    if (!box || box.length !== 4 || !(width > 0) || !(height > 0)) return null;
+    if (!box[0] && !box[1] && !box[2] && !box[3]) return null;
+    return {
+      a: {x: box[0] / width * 100, y: box[1] / height * 100},
+      b: {x: (box[2] + 1) / width * 100, y: (box[3] + 1) / height * 100},
+    };
+  }
+
+  // Zones.ObjectCoords: "x1,y1 x2,y2" in percent, corners normalised.
+  function boxToCoords(box) {
+    if (!box) return '';
+    const f = function(n) {
+      return n.toFixed(2);
+    };
+    return f(Math.min(box.a.x, box.b.x)) + ',' + f(Math.min(box.a.y, box.b.y)) + ' ' +
+        f(Math.max(box.a.x, box.b.x)) + ',' + f(Math.max(box.a.y, box.b.y));
+  }
+
+  function coordsToBox(coords) {
+    const m = /^(\d+(?:\.\d+)?),(\d+(?:\.\d+)?) (\d+(?:\.\d+)?),(\d+(?:\.\d+)?)$/.exec(coords || '');
+    if (!m) return null;
+    const v = m.slice(1).map(parseFloat);
+    if (!(v[2] > v[0]) || !(v[3] > v[1]) || v[2] > 100 || v[3] > 100) return null;
+    return {a: {x: v[0], y: v[1]}, b: {x: v[2], y: v[3]}};
+  }
+
   // Reduces zma's per-frame output to what the zone needs to show: for each
-  // stage, the peak value reached and how many frames got through it. Stages
-  // chain - a frame only counts for filtered if it passed alarmed - matching
-  // CheckAlarms, which stops at the first stage that fails.
+  // stage, the peak value reached and how many frames got through it.
   function summarizeZoneTest(result, zoneId) {
     const zone = (result.zones || []).filter(function(z) {
       return z.id == zoneId;
@@ -171,13 +245,10 @@
       peak.filter = Math.max(peak.filter, z.filter);
       peak.blob = Math.max(peak.blob, z.largestBlob);
       if (z.score > 0) passed.scored++;
-      if (z.alarm < zone.minAlarm) return;
-      passed.alarm++;
-      if (zone.checkMethod < 2) return;
-      if (z.filter < zone.minFilter) return;
-      passed.filter++;
-      if (zone.checkMethod < 3) return;
-      if (z.blobs >= Math.max(zone.minBlobs, 1) && z.maxBlob >= zone.minBlob) passed.blob++;
+      const stages = stageResults(frameVerdict(z, zone), zone.checkMethod);
+      ['alarm', 'filter', 'blob'].forEach(function(stage) {
+        if (stages[stage]) passed[stage]++;
+      });
     });
     return {zone: zone, peak: peak, passed: passed, done: result.done};
   }
@@ -185,6 +256,12 @@
   const api = {
     MIN_FILTER_KERNEL: MIN_FILTER_KERNEL,
     summarizeZoneTest: summarizeZoneTest,
+    frameVerdict: frameVerdict,
+    stageResults: stageResults,
+    frameAt: frameAt,
+    pixelBoxToPercent: pixelBoxToPercent,
+    boxToCoords: boxToCoords,
+    coordsToBox: coordsToBox,
     shiftBox: shiftBox,
     savedObjectPixels: savedObjectPixels,
     boxSidesForArea: boxSidesForArea,
@@ -214,6 +291,27 @@
   let undoSnapshot = null;
   // The last box measured, so a change to the fraction can re-derive from it.
   let lastBox = null;
+  // lastBox is also what gets saved, as Zones.ObjectCoords.
+  function setLastBox(box) {
+    lastBox = box;
+    const el = document.zoneForm && document.zoneForm.elements['newZone[ObjectCoords]'];
+    if (el) el.value = boxToCoords(box);
+  }
+
+  // A box saved with the zone is the measurement itself; without one, show
+  // the estimate rebuilt from the thresholds.
+  function showInitialBox() {
+    const el = document.zoneForm && document.zoneForm.elements['newZone[ObjectCoords]'];
+    const stored = el ? coordsToBox(el.value) : null;
+    if (stored && zoneIsMeasurable()) {
+      lastBox = stored;
+      drawRect(stored.a, stored.b);
+      drawThresholds(stored);
+    } else {
+      showSavedObject();
+    }
+  }
+
   // The box on screen, measured or rebuilt from the saved thresholds.
   let shownBox = null;
   // Where a rebuilt box was moved to, so redraws keep it there.
@@ -365,7 +463,10 @@
   // The last zma test, while it still describes the form. Each stage is a pass
   // if any frame got through it; undefined means not tested or not applicable.
   let testSummary = null;
+  // While replaying, the rects show the frame on screen instead.
+  let replayStages = null;
   function testVerdict(stage) {
+    if (replayStages) return replayStages[stage];
     if (!testSummary) return undefined;
     const method = testSummary.zone.checkMethod;
     if ((stage === 'filter' && method < 2) || (stage === 'blob' && method < 3)) return undefined;
@@ -538,7 +639,7 @@
     clearChangeMarks();
     undoSnapshot = null;
     snapshotTaken = false;
-    lastBox = null;
+    setLastBox(null);
     const btn = document.getElementById('objectSizeUndoBtn');
     if (btn) btn.style.display = 'none';
     const panel = document.getElementById('rectangleSettings');
@@ -606,7 +707,7 @@
       snapshotTaken = true;
     }
 
-    lastBox = {a: {x: a.x, y: a.y}, b: {x: b.x, y: b.y}};
+    setLastBox({a: {x: a.x, y: a.y}, b: {x: b.x, y: b.y}});
 
     // Sensitivity is read from the snapshot, not the live fields: mid-drag
     // those already hold our own writes.
@@ -698,6 +799,7 @@
 
   // Any change to the form means the result no longer describes it.
   function staleTest() {
+    closeReplay();
     if (!testSummary) return;
     testSummary = null;
     const out = document.getElementById('zoneTestResult');
@@ -744,7 +846,12 @@
           }
           testSummary = summarizeZoneTest(resp, data.zid);
           showTestResult(testSummary);
-          refreshOverlay();
+          const video = select.options[select.selectedIndex].getAttribute('data-video');
+          if (testSummary && video) {
+            openReplay(resp, testSummary, video);
+          } else {
+            refreshOverlay();
+          }
         })
         .fail(function(jqxhr, textStatus, error) {
           out.textContent = textStatus + (error ? ': ' + error : '');
@@ -753,6 +860,234 @@
         .always(function() {
           btn.disabled = false;
         });
+  }
+
+  //
+  // Replay: the event video in place of the live view, with zma's verdict for
+  // the frame on screen drawn over it and a timeline of every frame.
+  //
+  let replay = null;
+  const STAGE_COLOURS = {alarm: '#ffa500', filter: '#00c8ff', blob: '#ff00ff'};
+
+  function replayVideo() {
+    let video = document.getElementById('replayVideo');
+    if (video) return video;
+    const feed = imageFeed();
+    if (!feed) return null;
+    video = document.createElement('video');
+    video.id = 'replayVideo';
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'auto';
+    video.style.display = 'none';
+    const svg = document.getElementById('zoneSVG');
+    if (svg && svg.parentNode === feed) {
+      feed.insertBefore(video, svg);
+    } else {
+      feed.appendChild(video);
+    }
+    return video;
+  }
+
+  function frameColour(f) {
+    if (f.verdict.scored) return '#00c000';
+    return STAGE_COLOURS[f.verdict.failedAt] || '#808080';
+  }
+
+  function drawTimeline() {
+    const canvas = document.getElementById('replayTimeline');
+    const video = document.getElementById('replayVideo');
+    if (!canvas || !replay || !video) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth * dpr;
+    const h = canvas.clientHeight * dpr;
+    if (canvas.width !== w) canvas.width = w;
+    if (canvas.height !== h) canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(128,128,128,0.25)';
+    ctx.fillRect(0, 0, w, h);
+    const duration = video.duration || replay.lastT || 1;
+    const barW = Math.max(1, w / Math.max(replay.totalFrames, 1));
+    replay.frames.forEach(function(f) {
+      ctx.fillStyle = frameColour(f);
+      ctx.fillRect(f.t / duration * w, 0, barW, h);
+    });
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(video.currentTime / duration * w - dpr, 0, 2 * dpr, h);
+  }
+
+  function drawReplayBox(id, box, cls) {
+    const pct = pixelBoxToPercent(box, monitorData[0].width, monitorData[0].height);
+    if (!pct) {
+      hideRects([id]);
+      return;
+    }
+    const r = setRect(id, pct.a, pct.b);
+    r.classList.toggle('testPass', cls === 'pass');
+    r.classList.toggle('testFail', cls === 'fail');
+  }
+
+  function showReplayFrame() {
+    const video = document.getElementById('replayVideo');
+    if (!replay || !video) return;
+    const f = frameAt(replay.frames, video.currentTime, replay.tol);
+    const info = document.getElementById('replayFrameInfo');
+    if (f) {
+      const cls = f.verdict.scored ? 'pass' : 'fail';
+      drawReplayBox('replayMotionRect', f.fz.motionBox, cls);
+      drawReplayBox('replayBlobRect', f.fz.blobBox, cls);
+      replayStages = stageResults(f.verdict, replay.zone.checkMethod);
+      if (info) {
+        const parts = ['frame ' + f.frame];
+        const z = replay.zone;
+        [['alarm', 'alarmed', f.fz.alarm, z.minAlarm, 1],
+          ['filter', 'filtered', f.fz.filter, z.minFilter, 2],
+          ['blob', 'largest blob', f.fz.largestBlob, z.minBlob, 3]].forEach(function(r) {
+          if (z.checkMethod < r[4] || replayStages[r[0]] === undefined) return;
+          parts.push(r[1] + ' ' + fmt(r[2]) + '/' + fmt(r[3]) + (replayStages[r[0]] ? ' ✓' : ' ✗'));
+        });
+        parts.push(f.verdict.scored ? 'scored ' + f.fz.score : 'no score');
+        info.textContent = parts.join(' · ');
+      }
+    } else {
+      hideRects(['replayMotionRect', 'replayBlobRect']);
+      replayStages = {};
+      if (info) info.textContent = video.currentTime.toFixed(2) + 's - no motion';
+    }
+    refreshOverlay();
+    drawTimeline();
+  }
+
+  function onVideoFrame() {
+    const video = document.getElementById('replayVideo');
+    showReplayFrame();
+    if (replay && video && video.requestVideoFrameCallback) {
+      video.requestVideoFrameCallback(onVideoFrame);
+    }
+  }
+
+  function openReplay(resp, summary, src) {
+    const video = replayVideo();
+    if (!video) return;
+    const zoneId = summary.zone.id;
+    const frames = [];
+    (resp.frames || []).forEach(function(f) {
+      const fz = (f.zones || []).filter(function(z) {
+        return z.id == zoneId;
+      })[0];
+      if (fz && f.t !== undefined) {
+        frames.push({t: f.t, frame: f.frame, fz: fz, verdict: frameVerdict(fz, summary.zone)});
+      }
+    });
+    frames.sort(function(x, y) {
+      return x.t - y.t;
+    });
+    const lastT = frames.length ? frames[frames.length - 1].t : 0;
+    replay = {
+      frames: frames, zone: summary.zone, totalFrames: resp.done.frames, lastT: lastT,
+      // Half a frame either side; refined once the video's length is known.
+      tol: lastT && resp.done.frames ? lastT / resp.done.frames : 0.05,
+    };
+    if (stillShown) hideStill();
+    streamCmdPause();
+    video.src = src;
+    video.style.display = '';
+    const controls = document.getElementById('replayControls');
+    if (controls) controls.style.display = '';
+    if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(onVideoFrame);
+    showReplayFrame();
+  }
+
+  function closeReplay() {
+    if (!replay) return;
+    replay = null;
+    replayStages = null;
+    const video = document.getElementById('replayVideo');
+    if (video) {
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+      video.style.display = 'none';
+    }
+    const controls = document.getElementById('replayControls');
+    if (controls) controls.style.display = 'none';
+    hideRects(['replayMotionRect', 'replayBlobRect']);
+    streamCmdPlay();
+    refreshOverlay();
+  }
+
+  function stepReplay(direction) {
+    const video = document.getElementById('replayVideo');
+    if (!replay || !video || !replay.frames.length) return;
+    const now = video.currentTime;
+    const eps = replay.tol / 2;
+    const list = replay.frames;
+    let target = null;
+    if (direction > 0) {
+      target = list.filter(function(f) {
+        return f.t > now + eps;
+      })[0];
+    } else {
+      const before = list.filter(function(f) {
+        return f.t < now - eps;
+      });
+      target = before[before.length - 1];
+    }
+    if (target) {
+      video.pause();
+      video.currentTime = target.t;
+    }
+  }
+
+  function initReplay() {
+    const video = replayVideo();
+    if (!video) return;
+    video.addEventListener('loadedmetadata', function() {
+      if (replay && video.duration && replay.totalFrames) {
+        replay.tol = video.duration / replay.totalFrames;
+      }
+      drawTimeline();
+    });
+    ['timeupdate', 'seeked'].forEach(function(type) {
+      video.addEventListener(type, showReplayFrame);
+    });
+    const playBtn = document.getElementById('replayPlayBtn');
+    const setPlayIcon = function() {
+      if (playBtn) playBtn.firstElementChild.textContent = video.paused ? 'play_arrow' : 'pause';
+    };
+    video.addEventListener('play', setPlayIcon);
+    video.addEventListener('pause', setPlayIcon);
+    if (playBtn) {
+      playBtn.addEventListener('click', function() {
+        if (video.paused) video.play(); else video.pause();
+      });
+    }
+    const prev = document.getElementById('replayPrevBtn');
+    if (prev) {
+      prev.addEventListener('click', function() {
+        stepReplay(-1);
+      });
+    }
+    const next = document.getElementById('replayNextBtn');
+    if (next) {
+      next.addEventListener('click', function() {
+        stepReplay(1);
+      });
+    }
+    const close = document.getElementById('replayCloseBtn');
+    if (close) close.addEventListener('click', closeReplay);
+    const canvas = document.getElementById('replayTimeline');
+    if (canvas) {
+      canvas.addEventListener('click', function(evt) {
+        if (!replay) return;
+        const rect = canvas.getBoundingClientRect();
+        const duration = video.duration || replay.lastT;
+        video.pause();
+        video.currentTime = (evt.clientX - rect.left) / rect.width * duration;
+      });
+    }
+    window.addEventListener('resize', drawTimeline);
   }
 
   function init() {
@@ -778,7 +1113,15 @@
       }
       // Arming starts a fresh measurement: the next drag must snapshot the
       // state as it is now, not as it was before the previous one.
-      if (!armed) forgetMeasurement();
+      if (!armed) {
+        // The box survives: drawing a new one replaces it, not arming.
+        const keep = lastBox;
+        forgetMeasurement();
+        if (keep) {
+          setLastBox(keep);
+          refreshOverlay();
+        }
+      }
       setArmed(!armed);
     });
 
@@ -885,8 +1228,9 @@
         forgetMeasurement();
         showBoxSize(0, 0);
         const result = resetHandler ? resetHandler.call(this, evt) : undefined;
-        // forgetMeasurement drew from the pre-reset fields.
-        showSavedObject();
+        // forgetMeasurement drew from the pre-reset fields; Reset has now put
+        // the saved ObjectCoords back too.
+        showInitialBox();
         return result;
       };
     }
@@ -1078,7 +1422,7 @@
         if (edit.box.saved) {
           savedCenter = {x: (box.a.x + box.b.x) / 2, y: (box.a.y + box.b.y) / 2};
         } else {
-          lastBox = {a: box.a, b: box.b};
+          setLastBox({a: box.a, b: box.b});
         }
         drawThresholds(box);
       } else {
@@ -1128,7 +1472,8 @@
       });
     }
 
-    showSavedObject();
+    initReplay();
+    showInitialBox();
   }
 
   if (typeof document !== 'undefined' && document.addEventListener) {
