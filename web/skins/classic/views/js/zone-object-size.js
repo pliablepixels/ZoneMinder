@@ -114,8 +114,37 @@
     return {a: {x: x, y: y}, b: {x: x + w, y: y + h}};
   }
 
+  // The inverse of objectThresholdPixels' first step: the object a saved
+  // MinAlarmPixels implies. Only the area survives storage, not the shape or
+  // where it was drawn.
+  function savedObjectPixels(minAlarmPct, zonePx, fraction) {
+    if (!(minAlarmPct > 0) || !(zonePx > 0) || !(fraction > 0)) return null;
+    return minAlarmPct / 100 * zonePx / fraction;
+  }
+
+  // Sides of a box of the given area and width/height ratio.
+  function boxSidesForArea(areaPx, aspect) {
+    if (!(areaPx > 0) || !(aspect > 0)) return null;
+    return {w: Math.sqrt(areaPx * aspect), h: Math.sqrt(areaPx / aspect)};
+  }
+
+  // The box scaled about its centre to cover share of its area. Schematic:
+  // alarmed pixels are scattered, this only shows how many of them must change.
+  function innerBox(box, share) {
+    if (!(share > 0)) return null;
+    const k = Math.sqrt(Math.min(share, 1));
+    const cx = (box.a.x + box.b.x) / 2;
+    const cy = (box.a.y + box.b.y) / 2;
+    const hw = Math.abs(box.b.x - box.a.x) * k / 2;
+    const hh = Math.abs(box.b.y - box.a.y) * k / 2;
+    return {a: {x: cx - hw, y: cy - hh}, b: {x: cx + hw, y: cy + hh}};
+  }
+
   const api = {
     MIN_FILTER_KERNEL: MIN_FILTER_KERNEL,
+    savedObjectPixels: savedObjectPixels,
+    boxSidesForArea: boxSidesForArea,
+    innerBox: innerBox,
     normalizeRatio: normalizeRatio,
     boxPercentForPixels: boxPercentForPixels,
     MANAGED_FIELDS: MANAGED_FIELDS,
@@ -278,26 +307,117 @@
     el.style.display = '';
   }
 
-  function drawRect(a, b) {
-    const r = document.getElementById('objectRect');
-    if (!r) return;
-    const x = Math.min(a.x, b.x);
-    const y = Math.min(a.y, b.y);
-    const w = Math.abs(b.x - a.x);
-    const h = Math.abs(b.y - a.y);
-    r.setAttribute('x', x);
-    r.setAttribute('y', y);
-    r.setAttribute('width', w);
-    r.setAttribute('height', h);
+  // Threshold rects drawn inside the object box, and the field each is sized by.
+  const THRESHOLD_RECTS = [
+    {id: 'objectAlarmRect', field: 'MinAlarmPixels'},
+    {id: 'objectFilterRect', field: 'MinFilterPixels'},
+    {id: 'objectBlobRect', field: 'MinBlobPixels'},
+  ];
+  const INNER_RECT_IDS = THRESHOLD_RECTS.map(function(t) {
+    return t.id;
+  }).concat(['objectKernelRect']);
+
+  function zonePixels() {
+    return zone.Area / monitorArea * monitorPixelArea;
+  }
+
+  function setRect(id, a, b) {
+    const r = document.getElementById(id);
+    if (!r) return null;
+    r.setAttribute('x', Math.min(a.x, b.x));
+    r.setAttribute('y', Math.min(a.y, b.y));
+    r.setAttribute('width', Math.abs(b.x - a.x));
+    r.setAttribute('height', Math.abs(b.y - a.y));
     r.style.display = '';
-    drawSizeLabel(x, y, w, h);
+    return r;
+  }
+
+  function hideRects(ids) {
+    ids.forEach(function(id) {
+      const r = document.getElementById(id);
+      if (r) r.style.display = 'none';
+    });
+  }
+
+  // saved: the box was rebuilt from stored thresholds rather than drawn.
+  function drawRect(a, b, saved) {
+    const r = setRect('objectRect', a, b);
+    if (!r) return;
+    r.classList.toggle('saved', !!saved);
+    // Stale until drawThresholds runs for this box.
+    hideRects(INNER_RECT_IDS);
+    drawSizeLabel(Math.min(a.x, b.x), Math.min(a.y, b.y),
+        Math.abs(b.x - a.x), Math.abs(b.y - a.y));
   }
 
   function hideRect() {
-    const r = document.getElementById('objectRect');
-    if (r) r.style.display = 'none';
+    hideRects(['objectRect'].concat(INNER_RECT_IDS));
     const el = document.getElementById('objectSizeLabel');
     if (el) el.style.display = 'none';
+  }
+
+  // Each Min threshold as a share of the box, from whatever the fields hold
+  // now, so hand edits show up too. Disabled fields (CheckMethod) are skipped:
+  // they take no part in detection.
+  function drawThresholds(box) {
+    const form = document.zoneForm;
+    const W = monitorData[0].width;
+    const H = monitorData[0].height;
+    const boxPx = Math.abs(box.b.x - box.a.x) / maxX * W *
+        Math.abs(box.b.y - box.a.y) / maxY * H;
+    const zonePx = zonePixels();
+    THRESHOLD_RECTS.forEach(function(t) {
+      const el = form.elements['newZone[' + t.field + ']'];
+      const pct = el && !el.disabled ? parseFloat(el.value) : NaN;
+      const inner = (boxPx > 0) ? innerBox(box, pct / 100 * zonePx / boxPx) : null;
+      if (inner) {
+        setRect(t.id, inner.a, inner.b);
+      } else {
+        hideRects([t.id]);
+      }
+    });
+    // The filter kernel to scale, in the box's corner: anything thinner than
+    // this is erased before blobs are counted.
+    const fx = form.elements['newZone[FilterX]'];
+    const fy = form.elements['newZone[FilterY]'];
+    const kx = fx && !fx.disabled ? parseInt(fx.value, 10) : NaN;
+    const ky = fy && !fy.disabled ? parseInt(fy.value, 10) : NaN;
+    if (kx > 1 || ky > 1) {
+      const x = Math.min(box.a.x, box.b.x);
+      const y = Math.min(box.a.y, box.b.y);
+      setRect('objectKernelRect', {x: x, y: y},
+          {x: x + (kx || 1) / W * maxX, y: y + (ky || 1) / H * maxY});
+    } else {
+      hideRects(['objectKernelRect']);
+    }
+  }
+
+  // With no measurement in hand, show the object the saved settings imply, at
+  // the monitor's aspect ratio and centred - shape and position are not stored.
+  function showSavedObject() {
+    hideRect();
+    if (!zoneIsMeasurable()) return;
+    const form = document.zoneForm;
+    const W = monitorData[0].width;
+    const H = monitorData[0].height;
+    const el = form.elements['newZone[MinAlarmPixels]'];
+    const area = savedObjectPixels(el && !el.disabled ? parseFloat(el.value) : NaN,
+        zonePixels(), currentRatios().fraction);
+    const sides = boxSidesForArea(area, W / H);
+    if (!sides) return;
+    const box = boxPercentForPixels(sides.w, sides.h,
+        {width: W, height: H, maxX: maxX, maxY: maxY});
+    if (!box) return;
+    drawRect(box.a, box.b, true);
+    drawThresholds(box);
+  }
+
+  function refreshOverlay() {
+    if (lastBox) {
+      drawThresholds(lastBox);
+    } else {
+      showSavedObject();
+    }
   }
 
   // Compared against the pre-drag snapshot: mid-drag the field already holds
@@ -326,7 +446,7 @@
     if (btn) btn.style.display = 'none';
     const panel = document.getElementById('rectangleSettings');
     if (panel && !armed) panel.style.display = 'none';
-    hideRect();
+    refreshOverlay();
   }
 
   function setArmed(on) {
@@ -380,7 +500,7 @@
     // Capture pixels: the units CheckAlarms counts in.
     const wPx = Math.abs(b.x - a.x) / maxX * monitorData[0].width;
     const hPx = Math.abs(b.y - a.y) / maxY * monitorData[0].height;
-    const zonePx = zone.Area / monitorArea * monitorPixelArea;
+    const zonePx = zonePixels();
     // A box this small is normal mid-drag. Change nothing, say nothing.
     if (!(wPx * hPx > 0) || !(zonePx > 0)) return false;
 
@@ -415,6 +535,7 @@
 
     // Refresh the pixel readouts beside each percentage field.
     updateAllPixelDisplays();
+    drawThresholds(lastBox);
     return true;
   }
 
@@ -544,7 +665,11 @@
         // way the player selector handles zmZonePlayer. No expiry argument, so
         // skin.js stores it with max-age to 2038 as most callers do.
         setCookie(spec.cookie, el.value);
-        if (lastBox) apply(lastBox.a, lastBox.b);
+        if (lastBox) {
+          apply(lastBox.a, lastBox.b);
+        } else {
+          showSavedObject();
+        }
       });
     });
 
@@ -560,7 +685,10 @@
         if (armed) setArmed(false);
         forgetMeasurement();
         showBoxSize(0, 0);
-        if (resetHandler) return resetHandler.call(this, evt);
+        const result = resetHandler ? resetHandler.call(this, evt) : undefined;
+        // forgetMeasurement drew from the pre-reset fields.
+        showSavedObject();
+        return result;
       };
     }
 
@@ -573,7 +701,11 @@
     if (typeof areaUpdater === 'function') {
       global.updateArea = function() {
         const result = areaUpdater.apply(this, arguments);
-        if (lastBox) apply(lastBox.a, lastBox.b);
+        if (lastBox) {
+          apply(lastBox.a, lastBox.b);
+        } else {
+          showSavedObject();
+        }
         return result;
       };
     }
@@ -581,14 +713,25 @@
     // A preset rewrites every field we manage. addEventListener rather than
     // patching applyPreset, which skin.js binds by reference at load time.
     const presetSelector = document.getElementById('presetSelector');
-    if (presetSelector) presetSelector.addEventListener('change', forgetMeasurement);
+    // skin.js delegates data-on-change from the document, so applyPreset runs
+    // after this listener; redraw once it has written the preset's values.
+    if (presetSelector) {
+      presetSelector.addEventListener('change', function() {
+        forgetMeasurement();
+        setTimeout(refreshOverlay, 0);
+      });
+    }
 
     const form = document.zoneForm;
 
     // applyZoneType disables every field we write once the zone stops being
     // measurable, so stand down rather than re-enable them behind it.
     form.elements['newZone[Type]'].addEventListener('change', function() {
-      if (zoneIsMeasurable()) return;
+      // Deferred like the preset: applyZoneType may not have run yet.
+      if (zoneIsMeasurable()) {
+        setTimeout(refreshOverlay, 0);
+        return;
+      }
       if (armed) setArmed(false);
       forgetMeasurement();
     });
@@ -600,6 +743,7 @@
       markChanged(field, false);
       const el = form.elements['newZone[' + field + ']'];
       if (undoSnapshot && el) undoSnapshot[field] = el.value;
+      refreshOverlay();
     }
 
     MANAGED_FIELDS.forEach(function(field) {
@@ -622,6 +766,8 @@
     if (checkMethod) {
       checkMethod.addEventListener('change', function() {
         releaseField('CheckMethod');
+        // applyCheckMethod enables or disables the fields drawThresholds reads.
+        setTimeout(refreshOverlay, 0);
       });
     }
 
@@ -708,6 +854,8 @@
     // A cancelled pointer - the browser taking over for a scroll or a gesture
     // - never sends pointerup, and would otherwise leave the drag running.
     feed.addEventListener('pointercancel', endDrag);
+
+    showSavedObject();
   }
 
   if (typeof document !== 'undefined' && document.addEventListener) {

@@ -203,6 +203,10 @@ if ( count($other_zones) ) {
 ?>
                 <polygon id="zonePoly" points="<?php echo $zone['AreaCoords'] ?>" class="Editing <?php echo $zone['Type'] ?>"/>
                 <rect id="objectRect" x="0" y="0" width="0" height="0" style="display:none"/>
+                <rect id="objectAlarmRect" x="0" y="0" width="0" height="0" style="display:none"><title><?php echo translate('RectangleAlarmedArea') ?></title></rect>
+                <rect id="objectFilterRect" x="0" y="0" width="0" height="0" style="display:none"><title><?php echo translate('RectangleFilteredArea') ?></title></rect>
+                <rect id="objectBlobRect" x="0" y="0" width="0" height="0" style="display:none"><title><?php echo translate('RectangleBlobArea') ?></title></rect>
+                <rect id="objectKernelRect" x="0" y="0" width="0" height="0" style="display:none"><title><?php echo translate('ZoneFilterSize') ?></title></rect>
                 Sorry, your browser does not support inline SVG
               </svg>
               <button type="button" id="objectImageReplaceBtn" class="btn btn-normal" style="display:none" title="<?php echo translate('ObjectImageLoad') ?>">
@@ -348,21 +352,21 @@ if ( count($other_zones) ) {
 									</td>
 								</tr>
 								<tr>
-									<th scope="row"><?php echo translate('RectangleAlarmedArea') ?></th>
+									<th scope="row" class="swatch alarm"><?php echo translate('RectangleAlarmedArea') ?></th>
 									<td>
 										<input type="number" id="objectFraction" value="<?php echo $rectangle_ratios['objectFraction']['value'] ?>" min="1" max="100" step="1"/>%
 										<span class="ratioHint"><?php echo translate('RectangleOfRectangle') ?></span>
 									</td>
 								</tr>
 								<tr>
-									<th scope="row"><?php echo translate('RectangleFilteredArea') ?></th>
+									<th scope="row" class="swatch filter"><?php echo translate('RectangleFilteredArea') ?></th>
 									<td>
 										<input type="number" id="objectFilterRatio" value="<?php echo $rectangle_ratios['objectFilterRatio']['value'] ?>" min="1" max="100" step="1"/>%
 										<span class="ratioHint"><?php echo translate('RectangleOfAlarmed') ?></span>
 									</td>
 								</tr>
 								<tr>
-									<th scope="row"><?php echo translate('RectangleBlobArea') ?></th>
+									<th scope="row" class="swatch blob"><?php echo translate('RectangleBlobArea') ?></th>
 									<td>
 										<input type="number" id="objectBlobRatio" value="<?php echo $rectangle_ratios['objectBlobRatio']['value'] ?>" min="1" max="100" step="1"/>%
 										<span class="ratioHint"><?php echo translate('RectangleOfFiltered') ?></span>

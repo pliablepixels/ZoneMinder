@@ -322,5 +322,57 @@ test('an unmeasured frame is refused rather than dividing by zero', () => {
       null);
 });
 
+console.log('savedObjectPixels');
+test('a saved MinAlarmPixels gives back the box that produced it', () => {
+  // Round trip through storage: pixels -> 2dp percent -> pixels. The column
+  // holds the alarm area to +-0.005% of the zone, so the box comes back to
+  // within that divided by the fraction - 342px here (27336 for 27260).
+  const pct = ZM.pixelsToPercent(
+      ZM.objectThresholdPixels(BOX_PX, RATIOS).alarm, ZONE_PX);
+  const back = ZM.savedObjectPixels(pct, ZONE_PX, RATIOS.fraction);
+  const slack = 0.005 / 100 * ZONE_PX / RATIOS.fraction;
+  assert.ok(Math.abs(back - BOX_PX) <= slack, 'got ' + back);
+});
+test('nothing saved, nothing drawn', () => {
+  [NaN, 0, -1].forEach((pct) => {
+    assert.strictEqual(ZM.savedObjectPixels(pct, ZONE_PX, 0.25), null);
+  });
+  assert.strictEqual(ZM.savedObjectPixels(1, 0, 0.25), null);
+  assert.strictEqual(ZM.savedObjectPixels(1, ZONE_PX, 0), null);
+});
+
+console.log('boxSidesForArea');
+test('sides keep the area and the aspect', () => {
+  const s = ZM.boxSidesForArea(4800, 4 / 3);
+  assert.ok(Math.abs(s.w - 80) < 1e-9 && Math.abs(s.h - 60) < 1e-9);
+});
+test('no area or aspect gives no box', () => {
+  assert.strictEqual(ZM.boxSidesForArea(0, 1), null);
+  assert.strictEqual(ZM.boxSidesForArea(100, 0), null);
+});
+
+console.log('innerBox');
+const OUTER = {a: {x: 10, y: 20}, b: {x: 50, y: 60}};
+test('a quarter of the area is half of each side, about the centre', () => {
+  assert.deepStrictEqual(ZM.innerBox(OUTER, 0.25),
+      {a: {x: 20, y: 30}, b: {x: 40, y: 50}});
+});
+test('the threshold chain nests', () => {
+  // 25% -> 70% -> 86%: each rect must sit inside the one before.
+  const alarm = ZM.innerBox(OUTER, 0.25);
+  const filter = ZM.innerBox(OUTER, 0.25 * 0.7);
+  const blob = ZM.innerBox(OUTER, 0.25 * 0.7 * 0.86);
+  [[alarm, filter], [filter, blob]].forEach((pair) => {
+    assert.ok(pair[1].a.x > pair[0].a.x && pair[1].b.x < pair[0].b.x);
+  });
+});
+test('a threshold bigger than the object is capped at the box', () => {
+  // A hand-set MinAlarmPixels can exceed the measured box; show the box full.
+  assert.deepStrictEqual(ZM.innerBox(OUTER, 3), OUTER);
+});
+test('an empty threshold draws nothing', () => {
+  [0, NaN, -1].forEach((v) => assert.strictEqual(ZM.innerBox(OUTER, v), null));
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

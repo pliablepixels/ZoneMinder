@@ -219,6 +219,30 @@
     vector-effect: non-scaling-stroke;
 }
 
+/* Rebuilt from saved thresholds rather than drawn: dashed, as an estimate. */
+.zones #objectRect.saved {
+    stroke-dasharray: 6 4;
+}
+
+/* Each Min threshold drawn to scale inside the object box. Colours repeat as
+   swatches on the matching rows of #rectangleSettings. */
+.zones #objectAlarmRect,
+.zones #objectFilterRect,
+.zones #objectBlobRect,
+.zones #objectKernelRect {
+    stroke-width: 1px;
+    vector-effect: non-scaling-stroke;
+}
+.zones #objectAlarmRect { fill: rgba(255, 165, 0, 0.15); stroke: #ffa500; }
+.zones #objectFilterRect { fill: rgba(0, 200, 255, 0.15); stroke: #00c8ff; }
+.zones #objectBlobRect { fill: rgba(255, 0, 255, 0.2); stroke: #ff00ff; }
+.zones #objectKernelRect { fill: #ffffff; stroke: #000000; }
+
+#rectangleSettings th.swatch { border-left: 4px solid transparent; }
+#rectangleSettings th.swatch.alarm { border-left-color: #ffa500; }
+#rectangleSettings th.swatch.filter { border-left-color: #00c8ff; }
+#rectangleSettings th.swatch.blob { border-left-color: #ff00ff; }
+
 #zonePoints table table th,
 #zonePoints table table td {
     border: 1px solid #7f7fb2;
