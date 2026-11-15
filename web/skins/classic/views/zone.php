@@ -145,6 +145,15 @@ foreach ($rectangle_ratios as $id => $spec) {
 # Testing the form's settings against a recording, through zma --dry-run.
 # Disabled, with the reason as its title, when it cannot work.
 $test_events = ZM\Event::find(array('MonitorId'=>$monitor->Id()), array('order'=>'Id DESC', 'limit'=>25));
+# Tag names per event, in one query. Skipped where the Tags tables are missing
+# (a database not yet upgraded), and the inner join drops links to deleted tags.
+$test_tags = array();
+if ( count($test_events) and dbFetchAll("SHOW TABLES LIKE 'Events_Tags'") ) {
+  $ids = array_map(function($e) { return $e->Id(); }, $test_events);
+  $rows = dbFetchAll('SELECT ET.EventId, T.Name FROM Events_Tags AS ET INNER JOIN Tags AS T ON T.Id=ET.TagId
+    WHERE ET.EventId IN ('.implode(',', array_fill(0, count($ids), '?')).') ORDER BY T.Name', NULL, $ids);
+  foreach ( ($rows ? $rows : array()) as $row ) $test_tags[$row['EventId']][] = $row['Name'];
+}
 $test_disabled = '';
 if ( !$zid ) {
   $test_disabled = translate('ZoneTestNeedSave');
@@ -287,9 +296,9 @@ if ( count($other_zones) ) {
 <?php foreach ( $test_events as $test_event ) {
   # What was in it, so the right event is easy to find: the notes (where
   # detection writes what it saw) or the cause, and any tags.
-  $what = trim(preg_replace('/\s+/', ' ', $test_event->Notes() ? $test_event->Notes() : $test_event->Cause()));
+  $what = trim(preg_replace('/\s+/', ' ', (string)($test_event->Notes() ? $test_event->Notes() : $test_event->Cause())));
   if ( mb_strlen($what) > 60 ) $what = mb_substr($what, 0, 59).'…';
-  $tags = array_map(function($tag) { return $tag->Name(); }, $test_event->Tags());
+  $tags = isset($test_tags[$test_event->Id()]) ? $test_tags[$test_event->Id()] : array();
   $text = $test_event->Id().' - '.$test_event->StartDateTime().' ('.round($test_event->Length()).'s) '.$what
     .(count($tags) ? ' ['.implode(', ', $tags).']' : '');
 ?>
