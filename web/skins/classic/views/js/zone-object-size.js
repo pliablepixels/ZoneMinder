@@ -1020,9 +1020,10 @@
           const panel = document.getElementById('zoneTestPanel');
           // The server sends the video for the event it ran, so a pick changed
           // mid-run cannot pair the wrong one.
-          if (resp.video && !(panel && panel.style.display === 'none')) openReplay(resp.video);
-          // JPEG-only events have no video: say why there is no replay.
-          test.noVideo = !resp.video;
+          const canReplay = resp.video || resp.jpegs;
+          if (canReplay && !(panel && panel.style.display === 'none')) openReplay(resp, data.eid);
+          // Neither a video nor stored frames: say why there is no replay.
+          test.noVideo = !canReplay;
           showTestResult();
         })
         .fail(function(jqxhr, textStatus, error) {
@@ -1043,24 +1044,111 @@
   // Matches .legend in zone.css.
   const TIMELINE_COLOURS = {pass: '#00c000', fail: '#e04040', unknown: '#505050', alarm: '#005000'};
 
-  function replayVideo() {
-    let video = document.getElementById('replayVideo');
-    if (video) return video;
+  // What the replay plays on: the event's mp4 in a <video>, or jpegPlayer over
+  // its stored frames. Both offer the video calls the replay uses.
+  let media = null;
+
+  // A <video> or <img> filling the feed under the overlay, made once.
+  function replayElement(tag, id) {
+    let el = document.getElementById(id);
+    if (el) return el;
     const feed = imageFeed();
     if (!feed) return null;
-    video = document.createElement('video');
-    video.id = 'replayVideo';
-    video.muted = true;
-    video.playsInline = true;
-    video.preload = 'auto';
-    video.style.display = 'none';
+    el = document.createElement(tag);
+    el.id = id;
+    el.className = 'replayMedia';
+    el.style.display = 'none';
+    if (tag === 'video') {
+      el.muted = true;
+      el.playsInline = true;
+      el.preload = 'auto';
+    }
     const svg = document.getElementById('zoneSVG');
     if (svg && svg.parentNode === feed) {
-      feed.insertBefore(video, svg);
+      feed.insertBefore(el, svg);
     } else {
-      feed.appendChild(video);
+      feed.appendChild(el);
     }
-    return video;
+    return el;
+  }
+
+  // Plays an event saved as JPEGs, one image per FrameId from view=image, in
+  // an <img>, behind the same calls and events as a <video>: currentTime,
+  // duration, paused, play(), pause(), and loadedmetadata / timeupdate /
+  // seeked / play / pause. Seconds map to frames at the event's own rate.
+  // ponytail: loads one frame at a time, so a slow server plays slower than
+  // real time; preload ahead if that matters.
+  function jpegPlayer(img, eid, total, fps) {
+    const events = new EventTarget();
+    let id = 1;
+    let timer = null;
+    const fire = function(type) {
+      events.dispatchEvent(new Event(type));
+    };
+    const show = function(n, type) {
+      id = Math.min(Math.max(n, 1), total);
+      // A missing frame is skipped over like a loaded one.
+      img.onload = img.onerror = function() {
+        fire(type);
+        if (!player.paused) timer = setTimeout(advance, 1000 / fps);
+      };
+      img.src = zmAuth.appendTo(thisUrl + '?view=image&eid=' + eid + '&fid=' + id);
+    };
+    const advance = function() {
+      if (id >= total) {
+        player.pause();
+      } else {
+        show(id + 1, 'timeupdate');
+      }
+    };
+    const player = {
+      paused: true,
+      duration: total / fps,
+      addEventListener: events.addEventListener.bind(events),
+      play: function() {
+        if (!player.paused) return;
+        player.paused = false;
+        fire('play');
+        advance();
+      },
+      pause: function() {
+        clearTimeout(timer);
+        if (player.paused) return;
+        player.paused = true;
+        fire('pause');
+      },
+    };
+    Object.defineProperty(player, 'currentTime', {
+      get: function() {
+        return (id - 1) / fps;
+      },
+      set: function(t) {
+        show(Math.round(t * fps) + 1, 'seeked');
+      },
+    });
+    show(1, 'loadedmetadata');
+    return player;
+  }
+
+  // The replay's listeners, once per player.
+  function bindMedia(m) {
+    if (m.zmBound) return;
+    m.zmBound = true;
+    m.addEventListener('loadedmetadata', function() {
+      if (replay && m.duration && replay.totalFrames) {
+        replay.tol = m.duration / replay.totalFrames;
+      }
+      drawTimeline();
+    });
+    ['timeupdate', 'seeked'].forEach(function(type) {
+      m.addEventListener(type, showReplayFrame);
+    });
+    const playBtn = document.getElementById('replayPlayBtn');
+    const setPlayIcon = function() {
+      if (playBtn) playBtn.firstElementChild.textContent = m.paused ? 'play_arrow' : 'pause';
+    };
+    m.addEventListener('play', setPlayIcon);
+    m.addEventListener('pause', setPlayIcon);
   }
 
   function frameColour(f) {
@@ -1070,7 +1158,7 @@
 
   function drawTimeline() {
     const canvas = document.getElementById('replayTimeline');
-    const video = document.getElementById('replayVideo');
+    const video = media;
     if (!canvas || !replay || !video) return;
     const dpr = window.devicePixelRatio || 1;
     const w = canvas.clientWidth * dpr;
@@ -1103,9 +1191,6 @@
     });
   }
 
-  // label: [above the top-left corner | under the bottom-left one, text].
-  // parts: [[name, true | false | undefined]] - a green tick, red cross or ?
-  // after each name - in a label above the box; none for no label.
   const REPLAY_RECTS = ['replayAlarmRect', 'replayFilterRect', 'replayBlobRect'];
 
   function drawReplayBox(id, box) {
@@ -1141,7 +1226,7 @@
   }
 
   function showReplayFrame() {
-    const video = document.getElementById('replayVideo');
+    const video = media;
     if (!replay || !video) return;
     const f = frameAt(replay.frames, video.currentTime, replay.tol);
     const info = document.getElementById('replayFrameInfo');
@@ -1184,7 +1269,7 @@
   }
 
   function onVideoFrame() {
-    const video = document.getElementById('replayVideo');
+    const video = media;
     showReplayFrame();
     if (replay && video && video.requestVideoFrameCallback) {
       video.requestVideoFrameCallback(onVideoFrame);
@@ -1213,9 +1298,28 @@
       measured: measuredKey(sent)};
   }
 
-  function openReplay(src) {
-    const video = replayVideo();
-    if (!video || !test) return;
+  // resp: the test response - a video to play, or JPEG frames of event eid.
+  function openReplay(resp, eid) {
+    if (!test) return;
+    const total = test.done.frames;
+    let video;
+    if (resp.video) {
+      video = replayElement('video', 'replayVideo');
+      if (!video) return;
+      video.src = resp.video;
+    } else {
+      const img = replayElement('img', 'replayImage');
+      if (!img) return;
+      // Frames sit at their FrameId at the event's average rate, the clock the
+      // JPEG player keeps, rather than at zma's timestamps.
+      const fps = resp.length > 0 ? total / resp.length : 10;
+      test.frames.forEach(function(f) {
+        f.t = (f.frame - 1) / fps;
+      });
+      video = jpegPlayer(img, eid, total, fps);
+    }
+    media = video;
+    bindMedia(video);
     const frames = test.frames.filter(function(f) {
       return f.t !== undefined;
     });
@@ -1223,7 +1327,6 @@
       return x.t - y.t;
     });
     const lastT = frames.length ? frames[frames.length - 1].t : 0;
-    const total = test.done.frames;
     replay = {
       frames: frames, totalFrames: total, lastT: lastT,
       // Half a frame either side; refined once the video's length is known.
@@ -1232,8 +1335,7 @@
     if (stillShown) hideStill();
     liveStream(false);
     liveButtons(false, zoneObjectSizeStrings.liveOff);
-    video.src = src;
-    video.style.display = '';
+    (resp.video ? video : document.getElementById('replayImage')).style.display = '';
     const controls = document.getElementById('replayControls');
     if (controls) controls.style.display = '';
     if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(onVideoFrame);
@@ -1274,12 +1376,19 @@
   function closeReplay() {
     if (!replay) return;
     replay = null;
+    if (media) media.pause();
+    media = null;
     const video = document.getElementById('replayVideo');
     if (video) {
-      video.pause();
       video.removeAttribute('src');
       video.load();
       video.style.display = 'none';
+    }
+    const img = document.getElementById('replayImage');
+    if (img) {
+      img.onload = img.onerror = null;
+      img.removeAttribute('src');
+      img.style.display = 'none';
     }
     const controls = document.getElementById('replayControls');
     if (controls) controls.style.display = 'none';
@@ -1292,7 +1401,7 @@
   }
 
   function stepReplay(direction) {
-    const video = document.getElementById('replayVideo');
+    const video = media;
     if (!replay || !video || !replay.frames.length) return;
     const now = video.currentTime;
     const eps = replay.tol / 2;
@@ -1314,27 +1423,13 @@
     }
   }
 
+  // The controls act on whichever player the replay is on.
   function initReplay() {
-    const video = replayVideo();
-    if (!video) return;
-    video.addEventListener('loadedmetadata', function() {
-      if (replay && video.duration && replay.totalFrames) {
-        replay.tol = video.duration / replay.totalFrames;
-      }
-      drawTimeline();
-    });
-    ['timeupdate', 'seeked'].forEach(function(type) {
-      video.addEventListener(type, showReplayFrame);
-    });
     const playBtn = document.getElementById('replayPlayBtn');
-    const setPlayIcon = function() {
-      if (playBtn) playBtn.firstElementChild.textContent = video.paused ? 'play_arrow' : 'pause';
-    };
-    video.addEventListener('play', setPlayIcon);
-    video.addEventListener('pause', setPlayIcon);
     if (playBtn) {
       playBtn.addEventListener('click', function() {
-        if (video.paused) video.play(); else video.pause();
+        if (!media) return;
+        if (media.paused) media.play(); else media.pause();
       });
     }
     const prev = document.getElementById('replayPrevBtn');
@@ -1354,11 +1449,11 @@
     const canvas = document.getElementById('replayTimeline');
     if (canvas) {
       canvas.addEventListener('click', function(evt) {
-        if (!replay) return;
+        if (!replay || !media) return;
         const rect = canvas.getBoundingClientRect();
-        const duration = video.duration || replay.lastT;
-        video.pause();
-        video.currentTime = (evt.clientX - rect.left) / rect.width * duration;
+        const duration = media.duration || replay.lastT;
+        media.pause();
+        media.currentTime = (evt.clientX - rect.left) / rect.width * duration;
       });
     }
     window.addEventListener('resize', drawTimeline);

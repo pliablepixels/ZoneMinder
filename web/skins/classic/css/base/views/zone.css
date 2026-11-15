@@ -268,7 +268,7 @@
 
 /* Event video replayed in place of the live view, in exactly the box the
    stream occupies so zma's capture-pixel boxes land where they belong. */
-#imageFrame #replayVideo {
+#imageFrame .replayMedia {
     position: absolute;
     top: 0;
     left: 0;
