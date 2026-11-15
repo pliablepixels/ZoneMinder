@@ -211,28 +211,6 @@
     return {failedAt: null, unknown: null, scored: true};
   }
 
-  // Each check on its own, as if the ones before it had passed: zma measured
-  // every stage, so a frame failing at filtered can still show whether its
-  // blob was big enough - every threshold to change, not just the first.
-  // true / false, or undefined when not measured or not tested.
-  function checkEach(fz, ran, now) {
-    const off = {
-      alarm: {minAlarm: 0, maxAlarm: 0},
-      filter: {minFilter: 0, maxFilter: 0},
-    };
-    const out = {};
-    STAGES.forEach(function(stage, i) {
-      if (now.checkMethod < i + 1) return;
-      const t = Object.assign({}, now, {checkMethod: i + 1});
-      STAGES.slice(0, i).forEach(function(before) {
-        Object.assign(t, off[before]);
-      });
-      const v = whatIfVerdict(fz, ran, t);
-      out[stage] = v.scored ? true : v.failedAt === stage ? false : undefined;
-    });
-    return out;
-  }
-
   // Per stage: true passed, false failed, undefined not reached, not tested
   // or not known.
   function stageResults(verdict, checkMethod) {
@@ -349,7 +327,6 @@
     zoneThresholds: zoneThresholds,
     whatIfVerdict: whatIfVerdict,
     tallyVerdicts: tallyVerdicts,
-    checkEach: checkEach,
     failureSummary: failureSummary,
     stageResults: stageResults,
     frameAt: frameAt,
@@ -1255,17 +1232,23 @@
     const info = document.getElementById('replayFrameInfo');
     if (f) {
       const str = zoneObjectSizeStrings;
-      const replayStages = checkEach(f.fz, test.ran, test.now);
+      // What ZM would do: checks stop at the first that fails, so the ones
+      // after it - outline and panel row - are not shown, though zma measured
+      // them.
+      const replayStages = stageResults(f.verdict, test.now.checkMethod);
+      const shown = function(stage) {
+        return replayStages[stage] !== undefined || f.verdict.unknown === stage;
+      };
       const z = test.now;
       drawReplayBox('replayAlarmRect', f.fz.alarmBox);
-      drawReplayBox('replayFilterRect', z.checkMethod >= 2 ? f.fz.filterBox : null);
-      drawReplayBox('replayBlobRect', z.checkMethod >= 3 ? f.fz.blobBox : null);
+      drawReplayBox('replayFilterRect', shown('filter') ? f.fz.filterBox : null);
+      drawReplayBox('replayBlobRect', shown('blob') ? f.fz.blobBox : null);
       showReplayStats([
-        ['swatchAlarm', str.replayAlarmed, z.minAlarm, f.fz.alarm, replayStages.alarm, 1],
-        ['swatchFilter', str.replayFiltered, z.minFilter, f.fz.filter, replayStages.filter, 2],
-        ['swatchBlob', str.replayBlob, z.minBlob, f.fz.largestBlob, replayStages.blob, 3],
+        ['swatchAlarm', str.replayAlarmed, z.minAlarm, f.fz.alarm, replayStages.alarm, 'alarm'],
+        ['swatchFilter', str.replayFiltered, z.minFilter, f.fz.filter, replayStages.filter, 'filter'],
+        ['swatchBlob', str.replayBlob, z.minBlob, f.fz.largestBlob, replayStages.blob, 'blob'],
       ].filter(function(r) {
-        return z.checkMethod >= r[5];
+        return shown(r[5]);
       }));
       if (info) {
         // The numbers are in the panel on the image; this says what they add up to.

@@ -441,21 +441,6 @@ test('stageResults stops at an unknown stage', () => {
       {alarm: true, filter: true, blob: false});
 });
 
-console.log('checkEach');
-test('each check is judged on its own, past an earlier failure', () => {
-  // Fails filtered, but its blob would have been big enough.
-  const fz = {alarm: 3132, filter: 256, blobs: 1, maxBlob: 256, largestBlob: 256};
-  const now = with_({minAlarm: 589, minFilter: 410, minBlob: 200});
-  const ran = with_({minAlarm: 0, minFilter: 0, minBlob: 200});
-  assert.deepStrictEqual(ZM.checkEach(fz, ran, now), {alarm: true, filter: false, blob: true});
-  // A bigger MinBlobPixels is judged from the largest blob...
-  assert.deepStrictEqual(ZM.checkEach(fz, ran, with_({minAlarm: 589, minFilter: 410, minBlob: 300})),
-      {alarm: true, filter: false, blob: false});
-  // ...but how many blobs pass a new size is not known.
-  assert.deepStrictEqual(ZM.checkEach(fz, ran, with_({minAlarm: 589, minFilter: 100, minBlob: 300, minBlobs: 2})),
-      {alarm: true, filter: true, blob: undefined});
-});
-
 console.log('tallyVerdicts');
 const v = (scored, extra) => Object.assign({failedAt: scored ? null : 'alarm', unknown: null, scored: scored}, extra);
 test('an alarm needs the count of scored frames in a row', () => {
