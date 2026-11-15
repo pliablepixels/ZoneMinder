@@ -932,7 +932,14 @@
     closeReplay();
     test = null;
     refreshOverlay();
-    out.textContent = zoneObjectSizeStrings.testRunning;
+    // Bootstrap's spinner-grow, as export.js and the video view use.
+    out.textContent = '';
+    const spinner = document.createElement('span');
+    spinner.className = 'spinner-grow spinner-grow-sm';
+    spinner.setAttribute('role', 'status');
+    spinner.setAttribute('aria-hidden', 'true');
+    out.appendChild(spinner);
+    out.appendChild(document.createTextNode(' ' + zoneObjectSizeStrings.testRunning));
     // Not getJSON: that takes the global ZM_WEB_AJAX_TIMEOUT (a few seconds)
     // and zma needs longer than that for any real event.
     $j.ajax({
