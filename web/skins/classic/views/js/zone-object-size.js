@@ -340,6 +340,8 @@
     lastBox = box;
     const el = document.zoneForm && document.zoneForm.elements['newZone[ObjectCoords]'];
     if (el) el.value = boxToCoords(box);
+    // A hidden field raises no event, so tell zone.js the form changed.
+    if (typeof global.checkDirty === 'function') global.checkDirty();
   }
 
   // A box saved with the zone is the measurement itself; without one, show
@@ -358,8 +360,6 @@
 
   // The box on screen, measured or rebuilt from the saved thresholds.
   let shownBox = null;
-  // Where a rebuilt box was moved to, so redraws keep it there.
-  let savedCenter = null;
 
   const RATIO_INPUTS = [
     {key: 'fraction', id: 'objectFraction', cookie: 'zmZoneObjectFraction'},
@@ -658,13 +658,9 @@
         zonePixels(), currentRatios().fraction);
     const sides = boxSidesForArea(area, W / H);
     if (!sides) return;
-    let box = boxPercentForPixels(sides.w, sides.h,
+    const box = boxPercentForPixels(sides.w, sides.h,
         {width: W, height: H, maxX: maxX, maxY: maxY});
     if (!box) return;
-    if (savedCenter) {
-      box = shiftBox(box, savedCenter.x - (box.a.x + box.b.x) / 2,
-          savedCenter.y - (box.a.y + box.b.y) / 2, maxX, maxY);
-    }
     drawRect(box.a, box.b, true);
     drawThresholds(box);
   }
@@ -1471,12 +1467,17 @@
       const w = document.getElementById('objectWidthPx');
       const h = document.getElementById('objectHeightPx');
       if (!w || !h) return;
-      const box = boxPercentForPixels(parseFloat(w.value), parseFloat(h.value),
+      let box = boxPercentForPixels(parseFloat(w.value), parseFloat(h.value),
           {width: monitorData[0].width, height: monitorData[0].height,
             maxX: maxX, maxY: maxY});
       if (!box) {
         alert(zoneObjectSizeStrings.sizeNeeded);
         return;
+      }
+      // Resize in place: keep the centre of the box already on screen.
+      if (shownBox) {
+        box = shiftBox(box, (shownBox.a.x + shownBox.b.x - box.a.x - box.b.x) / 2,
+            (shownBox.a.y + shownBox.b.y - box.a.y - box.b.y) / 2, maxX, maxY);
       }
       drawRect(box.a, box.b);
       finishDrag(box.a, box.b);
@@ -1563,12 +1564,10 @@
       if (edit.mode === 'move') {
         const box = shiftBox(edit.box, at.x - edit.from.x, at.y - edit.from.y,
             maxX, maxY);
-        drawRect(box.a, box.b, edit.box.saved);
-        if (edit.box.saved) {
-          savedCenter = {x: (box.a.x + box.b.x) / 2, y: (box.a.y + box.b.y) / 2};
-        } else {
-          setLastBox({a: box.a, b: box.b});
-        }
+        // Placing the estimate makes it your box, so where you put it is
+        // saved with the zone like a drawn one. Same area, same thresholds.
+        drawRect(box.a, box.b);
+        setLastBox({a: box.a, b: box.b});
         drawThresholds(box);
       } else {
         drawRect(edit.box.a, at);
