@@ -909,7 +909,10 @@
   // Values the test was run with, or that the form holds now.
   function formValues() {
     const form = document.zoneForm;
-    const values = {CheckMethod: form.elements['newZone[CheckMethod]'].value};
+    const values = {
+      CheckMethod: form.elements['newZone[CheckMethod]'].value,
+      Coords: getCoordString(),
+    };
     MANAGED_FIELDS.forEach(function(field) {
       const el = form.elements['newZone[' + field + ']'];
       values[field] = el ? el.value : '';
@@ -920,7 +923,7 @@
   // Settings that change what zma measures, not just how it is judged.
   function measuredKey(values) {
     return [values.MinPixelThreshold, values.MaxPixelThreshold, values.FilterX,
-      values.FilterY, getCoordString()].join('|');
+      values.FilterY, values.Coords].join('|');
   }
 
   // After any form change: re-judge every frame against the new thresholds,
@@ -942,7 +945,8 @@
       f.inAlarm = inAlarm.has(f.frame);
     });
     showTestResult();
-    if (replay) showReplayFrame(); else refreshOverlay();
+    refreshOverlay();
+    if (replay) showReplayFrame();
   }
 
   function staleTest() {
@@ -980,7 +984,6 @@
     ['MinAlarmPixels', 'MaxAlarmPixels', 'MinFilterPixels', 'MaxFilterPixels', 'MaxBlobs'].forEach(function(f) {
       sent[f] = '0';
     });
-    data['newZone[Coords]'] = getCoordString();
     Object.keys(sent).forEach(function(field) {
       data['newZone[' + field + ']'] = sent[field];
     });
@@ -1016,6 +1019,8 @@
             return;
           }
           rejudgeTest();
+          // A setting zma measures changed while it ran: the result is stale.
+          if (!test) return;
           // Closed while zma ran: its Exit button would be hidden with it.
           const panel = document.getElementById('zoneTestPanel');
           // The server sends the video for the event it ran, so a pick changed
@@ -1269,16 +1274,19 @@
       hideLabels(['replayStats']);
       if (info) info.textContent = video.currentTime.toFixed(2) + 's - ' + zoneObjectSizeStrings.replayNoMotion;
     }
-    refreshOverlay();
+    // Not refreshOverlay: the box does not change with the frame, and it would
+    // rewrite the size fields on every frame of playback.
     updateLegend();
     drawTimeline();
   }
 
+  // Kept so closeReplay can cancel it: a pending callback would otherwise
+  // start a second chain on the next replay's video.
+  let frameCallback = null;
   function onVideoFrame() {
-    const video = media;
     showReplayFrame();
-    if (replay && video && video.requestVideoFrameCallback) {
-      video.requestVideoFrameCallback(onVideoFrame);
+    if (replay && media && media.requestVideoFrameCallback) {
+      frameCallback = media.requestVideoFrameCallback(onVideoFrame);
     }
   }
 
@@ -1344,7 +1352,7 @@
     (resp.video ? video : document.getElementById('replayImage')).style.display = '';
     const controls = document.getElementById('replayControls');
     if (controls) controls.style.display = '';
-    if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(onVideoFrame);
+    if (video.requestVideoFrameCallback) frameCallback = video.requestVideoFrameCallback(onVideoFrame);
     showReplayFrame();
   }
 
@@ -1382,6 +1390,10 @@
   function closeReplay() {
     if (!replay) return;
     replay = null;
+    if (frameCallback !== null && media && media.cancelVideoFrameCallback) {
+      media.cancelVideoFrameCallback(frameCallback);
+    }
+    frameCallback = null;
     if (media) media.pause();
     media = null;
     const video = document.getElementById('replayVideo');
