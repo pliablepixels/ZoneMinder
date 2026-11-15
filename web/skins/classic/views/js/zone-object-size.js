@@ -471,30 +471,45 @@
 
   // Not SVG text: the SVG uses preserveAspectRatio="none", which would
   // stretch it out of shape.
-  function sizeLabel() {
-    let el = document.getElementById('objectSizeLabel');
+  function boxLabel(id) {
+    let el = document.getElementById(id);
     if (!el) {
       const feed = imageFeed();
       if (!feed) return null;
       el = document.createElement('div');
-      el.id = 'objectSizeLabel';
+      el.id = id;
+      el.className = 'boxLabel';
       feed.appendChild(el);
     }
     return el;
   }
 
-  // Capture pixels, so the figure means the same at any window size.
-  function drawSizeLabel(x, y, w, h) {
-    const el = sizeLabel();
-    if (!el) return;
-    const wPx = Math.round(w / maxX * monitorData[0].width);
-    const hPx = Math.round(h / maxY * monitorData[0].height);
-    el.textContent = wPx + '×' + hPx + ' = ' + (wPx * hPx).toLocaleString() + ' px';
+  // Above the box's top-left corner, or inside it near the top edge.
+  function placeLabel(id, text, x, y) {
+    const el = boxLabel(id);
+    if (!el) return null;
+    el.textContent = text;
     el.style.left = x + '%';
     el.style.top = y + '%';
-    // Flips inside the box when it is near the top edge.
     el.classList.toggle('below', y < 6);
     el.style.display = '';
+    return el;
+  }
+
+  function hideLabels(ids) {
+    ids.forEach(function(id) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+  }
+
+  // Capture pixels, so the figure means the same at any window size.
+  function drawSizeLabel(x, y, w, h, saved) {
+    const wPx = Math.round(w / maxX * monitorData[0].width);
+    const hPx = Math.round(h / maxY * monitorData[0].height);
+    placeLabel('objectSizeLabel', (saved ? zoneObjectSizeStrings.labelEstimate :
+        zoneObjectSizeStrings.labelObject) + ' ' + wPx + '×' + hPx + ' = ' +
+        (wPx * hPx).toLocaleString() + ' px', x, y);
   }
 
   // Threshold rects drawn inside the object box, and the field each is sized by.
@@ -507,17 +522,6 @@
   // The last zma test, re-judged against the form's thresholds as they change.
   // Null once a setting the thresholds cannot cover has changed.
   let test = null;
-  // While replaying, the rects show the frame on screen instead.
-  let replayStages = null;
-  // Each stage is a pass if any frame got through it; undefined means not
-  // tested or not applicable.
-  function testVerdict(stage) {
-    if (replayStages) return replayStages[stage];
-    if (!test) return undefined;
-    const method = test.now.checkMethod;
-    if ((stage === 'filter' && method < 2) || (stage === 'blob' && method < 3)) return undefined;
-    return test.tally.passed[stage] > 0;
-  }
   const INNER_RECT_IDS = THRESHOLD_RECTS.map(function(t) {
     return t.id;
   }).concat(['objectKernelRect']);
@@ -572,7 +576,7 @@
     // Stale until drawThresholds runs for this box.
     hideRects(INNER_RECT_IDS);
     drawSizeLabel(shownBox.a.x, shownBox.a.y,
-        shownBox.b.x - shownBox.a.x, shownBox.b.y - shownBox.a.y);
+        shownBox.b.x - shownBox.a.x, shownBox.b.y - shownBox.a.y, shownBox.saved);
     // Whichever box is on screen, the size fields describe it.
     showBoxSize((shownBox.b.x - shownBox.a.x) / maxX * monitorData[0].width,
         (shownBox.b.y - shownBox.a.y) / maxY * monitorData[0].height);
@@ -587,9 +591,20 @@
   function hideRect() {
     hideRects(['objectRect'].concat(INNER_RECT_IDS));
     shownBox = null;
-    ['objectSizeLabel', 'objectResizeHandle'].forEach(function(id) {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
+    hideLabels(['objectSizeLabel', 'objectResizeHandle']);
+    updateLegend();
+  }
+
+  // The legend lists only what is on the image now. data-rect names the
+  // element; data-saved, when present, must match its dashed state.
+  function updateLegend() {
+    document.querySelectorAll('#boxLegend [data-rect]').forEach(function(item) {
+      const el = document.getElementById(item.dataset.rect);
+      let shown = !!el && el.style.display !== 'none';
+      if (shown && item.dataset.saved !== undefined) {
+        shown = el.classList.contains('saved') === (item.dataset.saved === '1');
+      }
+      item.style.display = shown ? '' : 'none';
     });
   }
 
@@ -608,10 +623,7 @@
       const pct = el && !el.disabled ? parseFloat(el.value) : NaN;
       const inner = (boxPx > 0) ? innerBox(box, pct / 100 * zonePx / boxPx) : null;
       if (inner) {
-        const r = setRect(t.id, inner.a, inner.b);
-        const verdict = testVerdict(t.stage);
-        r.classList.toggle('testPass', verdict === true);
-        r.classList.toggle('testFail', verdict === false);
+        setRect(t.id, inner.a, inner.b);
       } else {
         hideRects([t.id]);
       }
@@ -630,6 +642,7 @@
     } else {
       hideRects(['objectKernelRect']);
     }
+    updateLegend();
   }
 
   // With no measurement in hand, show the object the saved settings imply, at
@@ -820,9 +833,10 @@
     const out = document.getElementById('zoneTestResult');
     if (!out || !test) return;
     const t = test.tally;
-    let text = test.done.frames + ' frames - ' + t.scored + ' alarm frame(s) - ' +
-        (t.wouldAlarm ? 'would alarm' : 'would not alarm') +
-        ' (needs ' + test.done.alarmFrameCount + ' scored frames in a row)';
+    const str = zoneObjectSizeStrings;
+    let text = str.testSummary.replace('%1', test.done.frames).replace('%2', t.scored)
+        .replace('%3', t.wouldAlarm ? str.testWouldAlarm : str.testWouldNotAlarm)
+        .replace('%4', test.done.alarmFrameCount);
     if (t.unknown) text += ' - ' + t.unknown + ' ' + zoneObjectSizeStrings.testUnknown;
     out.textContent = text;
   }
@@ -987,15 +1001,23 @@
     ctx.fillRect(video.currentTime / duration * w - dpr, 0, 2 * dpr, h);
   }
 
-  function drawReplayBox(id, box, cls) {
+  // label: [above the top-left corner | under the bottom-left one, text].
+  function drawReplayBox(id, box, cls, label) {
     const pct = pixelBoxToPercent(box, monitorData[0].width, monitorData[0].height);
     if (!pct) {
       hideRects([id]);
+      hideLabels([id + 'Label']);
       return;
     }
     const r = setRect(id, pct.a, pct.b);
     r.classList.toggle('testPass', cls === 'pass');
     r.classList.toggle('testFail', cls === 'fail');
+    const el = label[0] ? placeLabel(id + 'Label', label[1], pct.a.x, pct.a.y) :
+        placeLabel(id + 'Label', label[1], pct.a.x, pct.b.y);
+    if (!el) return;
+    el.classList.toggle('under', !label[0]);
+    el.classList.toggle('testPass', cls === 'pass');
+    el.classList.toggle('testFail', cls === 'fail');
   }
 
   function showReplayFrame() {
@@ -1005,28 +1027,32 @@
     const info = document.getElementById('replayFrameInfo');
     if (f) {
       const cls = f.verdict.scored ? 'pass' : 'fail';
-      drawReplayBox('replayMotionRect', f.fz.motionBox, cls);
-      drawReplayBox('replayBlobRect', f.fz.blobBox, cls);
-      replayStages = stageResults(f.verdict, test.now.checkMethod);
+      drawReplayBox('replayMotionRect', f.fz.motionBox, cls,
+          [true, zoneObjectSizeStrings.labelMotion]);
+      drawReplayBox('replayBlobRect', f.fz.blobBox, cls,
+          [false, zoneObjectSizeStrings.labelBlob + ' ' + fmt(f.fz.largestBlob) + ' px']);
+      const replayStages = stageResults(f.verdict, test.now.checkMethod);
       if (info) {
-        const parts = ['frame ' + f.frame];
+        const str = zoneObjectSizeStrings;
+        const parts = [str.replayFrame + ' ' + f.frame];
         const z = test.now;
-        [['alarm', 'alarmed', f.fz.alarm, z.minAlarm, 1],
-          ['filter', 'filtered', f.fz.filter, z.minFilter, 2],
-          ['blob', 'largest blob', f.fz.largestBlob, z.minBlob, 3]].forEach(function(r) {
+        [['alarm', str.replayAlarmed, f.fz.alarm, z.minAlarm, 1],
+          ['filter', str.replayFiltered, f.fz.filter, z.minFilter, 2],
+          ['blob', str.labelBlob, f.fz.largestBlob, z.minBlob, 3]].forEach(function(r) {
           if (z.checkMethod < r[4] || replayStages[r[0]] === undefined) return;
           parts.push(r[1] + ' ' + fmt(r[2]) + '/' + fmt(r[3]) + (replayStages[r[0]] ? ' ✓' : ' ✗'));
         });
         if (f.verdict.unknown) parts.push(zoneObjectSizeStrings.testUnknownFrame);
-        parts.push(f.verdict.scored ? 'scores' : 'no score');
+        parts.push(f.verdict.scored ? str.replayAlarmFrame : str.replayNoAlarm);
         info.textContent = parts.join(' · ');
       }
     } else {
       hideRects(['replayMotionRect', 'replayBlobRect']);
-      replayStages = {};
-      if (info) info.textContent = video.currentTime.toFixed(2) + 's - no motion';
+      hideLabels(['replayMotionRectLabel', 'replayBlobRectLabel']);
+      if (info) info.textContent = video.currentTime.toFixed(2) + 's - ' + zoneObjectSizeStrings.replayNoMotion;
     }
     refreshOverlay();
+    updateLegend();
     drawTimeline();
   }
 
@@ -1077,7 +1103,7 @@
       tol: lastT && total ? lastT / total : 0.05,
     };
     if (stillShown) hideStill();
-    streamCmdPause();
+    liveStream(false);
     liveButtons(false);
     video.src = src;
     video.style.display = '';
@@ -1087,9 +1113,21 @@
     showReplayFrame();
   }
 
+  // Stopped, not paused, under a recording: a paused zms keeps reporting
+  // status, so the fps line kept moving. Restarted the way changePlayer does.
+  function liveStream(on) {
+    monitors.forEach(function(m) {
+      if (on) m.start(); else m.stop();
+    });
+    pauseBtn.toggle(on);
+    playBtn.toggle(!on);
+  }
+
   // The live stream's buttons do nothing to the recording, so grey them out
   // while it is up.
   function liveButtons(on) {
+    const feed = imageFeed();
+    if (feed) feed.classList.toggle('replaying', !on);
     ['playBtn', 'pauseBtn', 'analyseBtn'].forEach(function(id) {
       const b = document.getElementById(id);
       if (!b) return;
@@ -1107,7 +1145,6 @@
   function closeReplay() {
     if (!replay) return;
     replay = null;
-    replayStages = null;
     const video = document.getElementById('replayVideo');
     if (video) {
       video.pause();
@@ -1118,8 +1155,10 @@
     const controls = document.getElementById('replayControls');
     if (controls) controls.style.display = 'none';
     hideRects(['replayMotionRect', 'replayBlobRect']);
+    hideLabels(['replayMotionRectLabel', 'replayBlobRectLabel']);
+    updateLegend();
     liveButtons(true);
-    streamCmdPlay();
+    liveStream(true);
     refreshOverlay();
   }
 

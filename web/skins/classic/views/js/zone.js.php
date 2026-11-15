@@ -112,7 +112,20 @@ var zoneObjectSizeStrings = {
   'testStale': '<?php echo addslashes(translate('ZoneTestStale')) ?>',
   'testUnknown': '<?php echo addslashes(translate('ZoneTestUnknown')) ?>',
   'testUnknownFrame': '<?php echo addslashes(translate('ZoneTestUnknownFrame')) ?>',
-  'liveOff': '<?php echo addslashes(translate('ZoneReplayLiveOff')) ?>'
+  'liveOff': '<?php echo addslashes(translate('ZoneReplayLiveOff')) ?>',
+  'labelObject': '<?php echo addslashes(translate('ZoneLabelObject')) ?>',
+  'labelEstimate': '<?php echo addslashes(translate('ZoneLabelEstimate')) ?>',
+  'labelMotion': '<?php echo addslashes(translate('ZoneLabelMotion')) ?>',
+  'labelBlob': '<?php echo addslashes(translate('ZoneLabelBlob')) ?>',
+  'replayFrame': '<?php echo addslashes(translate('ZoneReplayFrame')) ?>',
+  'replayAlarmed': '<?php echo addslashes(translate('ZoneReplayAlarmed')) ?>',
+  'replayFiltered': '<?php echo addslashes(translate('ZoneReplayFiltered')) ?>',
+  'replayAlarmFrame': '<?php echo addslashes(translate('ZoneReplayAlarmFrame')) ?>',
+  'replayNoAlarm': '<?php echo addslashes(translate('ZoneReplayNoAlarm')) ?>',
+  'replayNoMotion': '<?php echo addslashes(translate('ZoneReplayNoMotion')) ?>',
+  'testSummary': '<?php echo addslashes(translate('ZoneTestSummary')) ?>',
+  'testWouldAlarm': '<?php echo addslashes(translate('ZoneTestWouldAlarm')) ?>',
+  'testWouldNotAlarm': '<?php echo addslashes(translate('ZoneTestWouldNotAlarm')) ?>'
 };
 
 var deleteString = "<?php echo translate('Delete') ?>";

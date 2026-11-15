@@ -189,7 +189,7 @@
 /* Size of the measuring box, in capture pixels. Sits just above the box, or
    just inside it when the box is close to the top edge. Yellow on black to
    tie it to the box without competing with the red zone outline. */
-#imageFrame #objectSizeLabel {
+#imageFrame .boxLabel {
     position: absolute;
     z-index: 6;
     transform: translateY(-100%);
@@ -205,7 +205,7 @@
     pointer-events: none;
 }
 
-#imageFrame #objectSizeLabel.below {
+#imageFrame .boxLabel.below {
     transform: none;
     margin-top: 2px;
 }
@@ -309,17 +309,32 @@
 .legend .swatchBlob::before { background: #ff00ff; }
 .legend .legendNone::before { background: rgba(128,128,128,0.25); }
 .legend .legendRerun::before { background: #505050; }
-/* Boxes on the image, drawn as they are drawn there. */
-.legend .lgObject::before { border: 2px solid #ffff00; }
-.legend .lgEstimate::before { border: 2px dashed #ffff00; }
-.legend .lgAlarm::before { background: rgba(255, 165, 0, 0.15); border: 1px solid #ffa500; }
-.legend .lgFilter::before { background: rgba(0, 200, 255, 0.15); border: 1px solid #00c8ff; }
-.legend .lgBlob::before { background: rgba(255, 0, 255, 0.2); border: 1px solid #ff00ff; }
-.legend .lgKernel::before { background: #ffffff; border: 1px solid #000000; }
-.legend .lgMotion::before { border: 2px dashed #808080; }
-.legend .lgBlobBox::before { border: 2px solid #808080; }
-.legend .lgPass::before { border: 3px solid #00c000; }
-.legend .lgFail::before { border: 3px solid #ff0000; }
+/* One box per line, so each can say what it is in full. */
+#boxLegend div { white-space: normal; margin: 1px 0; }
+#boxLegend div::before {
+    content: "";
+    display: inline-block;
+    box-sizing: border-box;
+    width: 0.9em;
+    height: 0.9em;
+    margin-right: 0.4em;
+    vertical-align: middle;
+}
+#boxLegend .lgObject::before { border: 2px solid #ffff00; }
+#boxLegend .lgEstimate::before { border: 2px dashed #ffff00; }
+#boxLegend .lgAlarm::before { background: rgba(255, 165, 0, 0.15); border: 1px solid #ffa500; }
+#boxLegend .lgFilter::before { background: rgba(0, 200, 255, 0.15); border: 1px solid #00c8ff; }
+#boxLegend .lgBlob::before { background: rgba(255, 0, 255, 0.2); border: 1px solid #ff00ff; }
+#boxLegend .lgKernel::before { background: #ffffff; border: 1px solid #000000; }
+#boxLegend .lgMotion::before { border: 2px dashed #808080; }
+#boxLegend .lgBlobBox::before { border: 2px solid #808080; }
+
+/* Labels on zma's boxes, coloured like the box. */
+#imageFrame .boxLabel.under { transform: none; margin-top: 2px; }
+#imageFrame .boxLabel.testPass { color: #ffffff; background: rgba(0, 150, 0, 0.85); }
+#imageFrame .boxLabel.testFail { color: #ffffff; background: rgba(200, 0, 0, 0.85); }
+/* The live stream's "Paused" text, while the recording plays over it. */
+.replaying [id^="stream-info-block"] { display: none; }
 
 /* After a zma test: thick green where some frame got through the stage, red
    where none did. */

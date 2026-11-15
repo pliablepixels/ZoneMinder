@@ -391,7 +391,7 @@ if ( count($other_zones) ) {
                       <button type="button" id="replayPrevBtn" class="btn btn-normal" title="<?php echo translate('ZoneReplayPrev') ?>"><i class="material-icons md-18">skip_previous</i></button>
                       <button type="button" id="replayPlayBtn" class="btn btn-normal" title="<?php echo translate('Play') ?>"><i class="material-icons md-18">play_arrow</i></button>
                       <button type="button" id="replayNextBtn" class="btn btn-normal" title="<?php echo translate('ZoneReplayNext') ?>"><i class="material-icons md-18">skip_next</i></button>
-                      <button type="button" id="replayCloseBtn" class="btn btn-normal" title="<?php echo translate('ZoneReplayClose') ?>"><i class="material-icons md-18">close</i> <?php echo translate('ZoneReplayBackToLive') ?></button>
+                      <button type="button" id="replayCloseBtn" class="btn btn-normal" title="<?php echo translate('ZoneReplayClose') ?>"><i class="material-icons md-18">close</i> <?php echo translate('Exit') ?></button>
                       <span id="replayFrameInfo"></span>
                     </div>
                   </td>
@@ -399,16 +399,14 @@ if ( count($other_zones) ) {
                 <tr>
                   <td>
                     <div id="boxLegend" class="legend">
-                      <span class="lgObject"><?php echo translate('ZoneLegendObject') ?></span>
-                      <span class="lgEstimate"><?php echo translate('ZoneLegendEstimate') ?></span>
-                      <span class="lgAlarm"><?php echo translate('ZoneLegendAlarm') ?></span>
-                      <span class="lgFilter"><?php echo translate('ZoneLegendFilter') ?></span>
-                      <span class="lgBlob"><?php echo translate('ZoneLegendBlob') ?></span>
-                      <span class="lgKernel"><?php echo translate('ZoneLegendKernel') ?></span>
-                      <span class="lgMotion"><?php echo translate('ZoneLegendMotion') ?></span>
-                      <span class="lgBlobBox"><?php echo translate('ZoneLegendBlobBox') ?></span>
-                      <span class="lgPass"><?php echo translate('ZoneLegendPass') ?></span>
-                      <span class="lgFail"><?php echo translate('ZoneLegendFail') ?></span>
+                      <div class="lgObject" data-rect="objectRect" data-saved="0"><?php echo translate('ZoneLegendObject') ?></div>
+                      <div class="lgEstimate" data-rect="objectRect" data-saved="1"><?php echo translate('ZoneLegendEstimate') ?></div>
+                      <div class="lgAlarm" data-rect="objectAlarmRect"><?php echo translate('ZoneLegendAlarm') ?></div>
+                      <div class="lgFilter" data-rect="objectFilterRect"><?php echo translate('ZoneLegendFilter') ?></div>
+                      <div class="lgBlob" data-rect="objectBlobRect"><?php echo translate('ZoneLegendBlob') ?></div>
+                      <div class="lgKernel" data-rect="objectKernelRect"><?php echo translate('ZoneLegendKernel') ?></div>
+                      <div class="lgMotion" data-rect="replayMotionRect"><?php echo translate('ZoneLegendMotion') ?></div>
+                      <div class="lgBlobBox" data-rect="replayBlobRect"><?php echo translate('ZoneLegendBlobBox') ?></div>
                     </div>
                   </td>
                 </tr>
