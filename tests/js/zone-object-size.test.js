@@ -459,6 +459,21 @@ test('unknown frames are counted and not scored', () => {
   assert.deepStrictEqual([t.unknown, t.scored], [1, 0]);
 });
 
+console.log('failureSummary');
+const TH = {minAlarm: 1000, minFilter: 800, minBlob: 500};
+const fr = (failedAt, fz) => ({verdict: {failedAt: failedAt}, fz: fz});
+test('names the stage most frames stop at, and the closest one came', () => {
+  const s = ZM.failureSummary([
+    fr('alarm', {alarm: 300}), fr('alarm', {alarm: 900}), fr('blob', {largestBlob: 450}),
+    fr(null, {alarm: 5000}),
+  ], TH);
+  assert.deepStrictEqual(s, {stage: 'alarm', frames: 2, best: 900, need: 1000});
+});
+test('a frame over a maximum is not a near miss', () => {
+  assert.strictEqual(ZM.failureSummary([fr('alarm', {alarm: 5000})], TH), null);
+  assert.strictEqual(ZM.failureSummary([], TH), null);
+});
+
 console.log('frameAt');
 const FR = [{t: 0.1}, {t: 0.2}, {t: 0.5}];
 test('nearest frame within tolerance, either side', () => {

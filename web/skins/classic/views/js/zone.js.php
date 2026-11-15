@@ -118,16 +118,20 @@ var zoneObjectSizeStrings = {
   'labelEstimate': '<?php echo addslashes(translate('ZoneLabelEstimate')) ?>',
   'replayFrame': '<?php echo addslashes(translate('ZoneReplayFrame')) ?>',
   'replayAlarmed': '<?php echo addslashes(translate('ZoneReplayAlarmed')) ?>',
-  'replayVs': '<?php echo addslashes(translate('ZoneReplayVs')) ?>',
   'replayBlob': '<?php echo addslashes(translate('ZoneReplayBlob')) ?>',
   'replayFiltered': '<?php echo addslashes(translate('ZoneReplayFiltered')) ?>',
   'replayScored': '<?php echo addslashes(translate('ZoneReplayScored')) ?>',
   'testNotDetecting': '<?php echo addslashes(translate('ZoneTestNotDetecting')) ?>',
   'replayNoMotion': '<?php echo addslashes(translate('ZoneReplayNoMotion')) ?>',
-  'testSummary': '<?php echo addslashes(translate('ZoneTestSummary')) ?>',
   'testWouldAlarm': '<?php echo addslashes(translate('ZoneTestWouldAlarm')) ?>',
   'testWouldNotAlarm': '<?php echo addslashes(translate('ZoneTestWouldNotAlarm')) ?>',
-  'replayInAlarm': '<?php echo addslashes(translate('ZoneReplayInAlarm')) ?>'
+  'replayInAlarm': '<?php echo addslashes(translate('ZoneReplayInAlarm')) ?>',
+  'replayFailsAt': '<?php echo addslashes(translate('ZoneReplayFailsAt')) ?>',
+  'replayMin': '<?php echo addslashes(translate('ZoneReplayMin')) ?>',
+  'replayGot': '<?php echo addslashes(translate('ZoneReplayGot')) ?>',
+  'testQualify': '<?php echo addslashes(translate('ZoneTestQualify')) ?>',
+  'testNotInARow': '<?php echo addslashes(translate('ZoneTestNotInARow')) ?>',
+  'testClosest': '<?php echo addslashes(translate('ZoneTestClosest')) ?>'
 };
 
 var deleteString = "<?php echo translate('Delete') ?>";

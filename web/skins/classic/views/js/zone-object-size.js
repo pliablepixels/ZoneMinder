@@ -256,6 +256,29 @@
     return out;
   }
 
+  // Why frames fail, for a "do I need to change something" answer: the stage
+  // most failing frames stop at, and the closest any of them came to its
+  // minimum. Frames failing on a maximum are not near misses and are skipped.
+  // null when nothing fell short of a minimum.
+  function failureSummary(frames, t) {
+    const measure = {alarm: 'alarm', filter: 'filter', blob: 'largestBlob'};
+    const need = {alarm: t.minAlarm, filter: t.minFilter, blob: t.minBlob};
+    const counts = {};
+    const best = {};
+    frames.forEach(function(f) {
+      const stage = f.verdict.failedAt;
+      if (!stage) return;
+      const got = f.fz[measure[stage]] || 0;
+      if (need[stage] && got >= need[stage]) return;
+      counts[stage] = (counts[stage] || 0) + 1;
+      best[stage] = Math.max(best[stage] || 0, got);
+    });
+    const stage = Object.keys(counts).sort(function(a, b) {
+      return counts[b] - counts[a];
+    })[0];
+    return stage ? {stage: stage, frames: counts[stage], best: best[stage], need: need[stage]} : null;
+  }
+
   // The frame closest to t seconds, if one is within tol. frames sorted by t.
   function frameAt(frames, t, tol) {
     let lo = 0;
@@ -304,6 +327,7 @@
     zoneThresholds: zoneThresholds,
     whatIfVerdict: whatIfVerdict,
     tallyVerdicts: tallyVerdicts,
+    failureSummary: failureSummary,
     stageResults: stageResults,
     frameAt: frameAt,
     pixelBoxToPercent: pixelBoxToPercent,
@@ -612,6 +636,13 @@
       }
       item.style.display = shown ? '' : 'none';
     });
+    // A row with nothing on the image goes, heading and all.
+    document.querySelectorAll('#boxLegend .legendRow').forEach(function(row) {
+      const any = Array.prototype.some.call(row.querySelectorAll('[data-rect]'), function(item) {
+        return item.style.display !== 'none';
+      });
+      row.style.display = any ? '' : 'none';
+    });
   }
 
   // Each Min threshold as a share of the box, from whatever the fields hold
@@ -848,11 +879,30 @@
     if (!out || !test) return;
     const t = test.tally;
     const str = zoneObjectSizeStrings;
-    let text = str.testSummary.replace('%1', test.done.frames).replace('%2', t.scored)
-        .replace('%3', t.wouldAlarm ? str.testWouldAlarm : str.testWouldNotAlarm)
-        .replace('%4', test.done.alarmFrameCount);
-    if (t.unknown) text += ' - ' + t.unknown + ' ' + zoneObjectSizeStrings.testUnknown;
-    out.textContent = text;
+    // The answer first, then why: would it alarm, how many frames qualify,
+    // and if not, what blocked most frames and how close the best one came.
+    out.textContent = '';
+    out.appendChild(checkMark(t.wouldAlarm));
+    const verdict = document.createElement('b');
+    verdict.textContent = ' ' + (t.wouldAlarm ? str.testWouldAlarm : str.testWouldNotAlarm);
+    out.appendChild(verdict);
+    const parts = [str.testQualify.replace('%1', t.scored).replace('%2', test.done.frames)];
+    if (!t.wouldAlarm) {
+      const why = failureSummary(test.frames, test.now);
+      if (t.scored) {
+        parts.push(str.testNotInARow.replace('%1', test.done.alarmFrameCount));
+      } else if (why) {
+        parts.push(str.testClosest.replace('%1', stageName(why.stage))
+            .replace('%2', fmt(why.best)).replace('%3', fmt(why.need)));
+      }
+    }
+    if (t.unknown) parts.push(t.unknown + ' ' + str.testUnknown);
+    out.appendChild(document.createTextNode(' · ' + parts.join(' · ')));
+  }
+
+  function stageName(stage) {
+    const str = zoneObjectSizeStrings;
+    return {alarm: str.replayAlarmed, filter: str.replayFiltered, blob: str.replayBlob}[stage];
   }
 
   // Values the test was run with, or that the form holds now.
@@ -985,8 +1035,9 @@
   // the frame on screen drawn over it and a timeline of every frame.
   //
   let replay = null;
-  // Matches .legend .fail* in zone.css.
-  const STAGE_COLOURS = {alarm: '#f4b4b4', filter: '#e06666', blob: '#a01818'};
+  // Pass and fail only - which check failed is in the panel on the image.
+  // Matches .legend in zone.css.
+  const TIMELINE_COLOURS = {pass: '#00c000', fail: '#e04040', unknown: '#505050', alarm: '#005000'};
 
   function replayVideo() {
     let video = document.getElementById('replayVideo');
@@ -1009,9 +1060,8 @@
   }
 
   function frameColour(f) {
-    if (f.verdict.scored) return '#00c000';
-    if (f.verdict.unknown) return '#505050';
-    return STAGE_COLOURS[f.verdict.failedAt] || '#808080';
+    if (f.verdict.scored) return TIMELINE_COLOURS.pass;
+    return f.verdict.unknown ? TIMELINE_COLOURS.unknown : TIMELINE_COLOURS.fail;
   }
 
   function drawTimeline() {
@@ -1033,13 +1083,12 @@
     const seen = {legendNone: true};
     replay.frames.forEach(function(f) {
       const v = f.verdict;
-      seen[v.scored ? 'legendScored' : v.unknown ? 'legendRerun' :
-          {alarm: 'failAlarm', filter: 'failFilter', blob: 'failBlob'}[v.failedAt]] = true;
+      seen[v.scored ? 'legendScored' : v.unknown ? 'legendRerun' : 'legendFail'] = true;
       if (f.inAlarm) seen.legendInAlarm = true;
       ctx.fillStyle = frameColour(f);
       ctx.fillRect(f.t / duration * w, 0, barW, h);
       if (f.inAlarm) {
-        ctx.fillStyle = '#005000';
+        ctx.fillStyle = TIMELINE_COLOURS.alarm;
         ctx.fillRect(f.t / duration * w, 0, barW, h / 3);
       }
     });
@@ -1070,8 +1119,8 @@
     rows.forEach(function(r) {
       const row = document.createElement('div');
       row.className = r[0];
-      row.appendChild(document.createTextNode(r[1] + ': ' + fmt(r[2]) + ' ' +
-          zoneObjectSizeStrings.replayVs + ' ' + fmt(r[3]) + ' '));
+      row.appendChild(document.createTextNode(r[1] + '  ' + zoneObjectSizeStrings.replayMin + ' ' +
+          fmt(r[2]) + ' · ' + zoneObjectSizeStrings.replayGot + ' ' + fmt(r[3]) + ' '));
       row.appendChild(checkMark(r[4]));
       el.appendChild(row);
     });
@@ -1112,9 +1161,13 @@
         const add = function(text) {
           info.appendChild(document.createTextNode(' · ' + text));
         };
-        if (f.verdict.unknown) add(zoneObjectSizeStrings.testUnknownFrame);
-        // A failed check already shows as a cross; say only what passing adds.
-        if (f.verdict.scored) add(f.inAlarm ? str.replayInAlarm : str.replayScored);
+        if (f.verdict.unknown) {
+          add(zoneObjectSizeStrings.testUnknownFrame);
+        } else if (f.verdict.scored) {
+          add(f.inAlarm ? str.replayInAlarm : str.replayScored);
+        } else {
+          add(str.replayFailsAt.replace('%1', stageName(f.verdict.failedAt)));
+        }
       }
     } else {
       hideRects(REPLAY_RECTS);

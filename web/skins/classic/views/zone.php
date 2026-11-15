@@ -319,9 +319,7 @@ if ( count($other_zones) ) {
                     <div id="replayLegend" class="legend">
                       <span class="legendInAlarm"><?php echo translate('ZoneReplayInAlarmKey') ?></span>
                       <span class="legendScored"><?php echo translate('ZoneReplayScored') ?></span>
-                      <span class="failAlarm"><?php echo translate('ZoneReplayFailAlarm') ?></span>
-                      <span class="failFilter"><?php echo translate('ZoneReplayFailFilter') ?></span>
-                      <span class="failBlob"><?php echo translate('ZoneReplayFailBlob') ?></span>
+                      <span class="legendFail"><?php echo translate('ZoneReplayFails') ?></span>
                       <span class="legendNone"><?php echo translate('ZoneReplayNoChange') ?></span>
                       <span class="legendRerun"><?php echo translate('ZoneReplayRerun') ?></span>
                     </div>
@@ -337,15 +335,20 @@ if ( count($other_zones) ) {
                 <tr>
                   <td>
                     <div id="boxLegend" class="legend">
-                      <div class="lgObject" data-rect="objectRect" data-saved="0"><?php echo translate('ZoneLegendObject') ?></div>
-                      <div class="lgEstimate" data-rect="objectRect" data-saved="1"><?php echo translate('ZoneLegendEstimate') ?></div>
-                      <div class="lgAlarm" data-rect="objectAlarmRect"><?php echo translate('ZoneLegendAlarm') ?></div>
-                      <div class="lgFilter" data-rect="objectFilterRect"><?php echo translate('ZoneLegendFilter') ?></div>
-                      <div class="lgBlob" data-rect="objectBlobRect"><?php echo translate('ZoneLegendBlob') ?></div>
-                      <div class="lgKernel" data-rect="objectKernelRect"><?php echo translate('ZoneLegendKernel') ?></div>
-                      <div class="lgAlarmBox" data-rect="replayAlarmRect"><?php echo translate('ZoneLegendAlarmBox') ?></div>
-                      <div class="lgFilterBox" data-rect="replayFilterRect"><?php echo translate('ZoneLegendFilterBox') ?></div>
-                      <div class="lgBlobBox" data-rect="replayBlobRect"><?php echo translate('ZoneLegendBlobBox') ?></div>
+                      <div class="legendRow">
+                        <span class="lgObject" data-rect="objectRect" data-saved="0"><?php echo translate('ZoneLegendObject') ?></span>
+                        <span class="lgEstimate" data-rect="objectRect" data-saved="1"><?php echo translate('ZoneLegendEstimate') ?></span>
+                        <span class="lgAlarm" data-rect="objectAlarmRect"><?php echo translate('ZoneLegendAlarm') ?></span>
+                        <span class="lgFilter" data-rect="objectFilterRect"><?php echo translate('ZoneLegendFilter') ?></span>
+                        <span class="lgBlob" data-rect="objectBlobRect"><?php echo translate('ZoneLegendBlob') ?></span>
+                        <span class="lgKernel" data-rect="objectKernelRect"><?php echo translate('ZoneLegendKernel') ?></span>
+                      </div>
+                      <div class="legendRow">
+                        <b><?php echo translate('ZoneLegendFrame') ?></b>
+                        <span class="lgAlarmBox" data-rect="replayAlarmRect"><?php echo translate('ZoneLegendAlarmBox') ?></span>
+                        <span class="lgFilterBox" data-rect="replayFilterRect"><?php echo translate('ZoneLegendFilterBox') ?></span>
+                        <span class="lgBlobBox" data-rect="replayBlobRect"><?php echo translate('ZoneLegendBlobBox') ?></span>
+                      </div>
                     </div>
                   </td>
                 </tr>
