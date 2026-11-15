@@ -276,16 +276,20 @@
     z-index: 1;
 }
 
-/* zma's boxes for the frame on screen: where the change was (dashed) and the
-   largest blob (solid). Coloured pass/fail below; never take a press. */
-.zones #replayMotionRect,
+/* zma's outlines for the frame on screen, in the colours of the minimums
+   they are measured against: alarmed, filtered, largest blob. Pass or fail
+   is in the label's marks. They never take a press. */
+.zones #replayAlarmRect,
+.zones #replayFilterRect,
 .zones #replayBlobRect {
     fill: none;
-    stroke: #ffffff;
+    stroke-width: 2px;
     vector-effect: non-scaling-stroke;
     pointer-events: none;
 }
-.zones #replayMotionRect { stroke-dasharray: 4 3; }
+.zones #replayAlarmRect { stroke: #ffa500; stroke-dasharray: 6 3; }
+.zones #replayFilterRect { stroke: #00c8ff; stroke-dasharray: 2 3; }
+.zones #replayBlobRect { stroke: #ff00ff; }
 
 #replayTimeline {
     display: block;
@@ -331,8 +335,9 @@
 #boxLegend .lgFilter::before { background: rgba(0, 200, 255, 0.15); border: 1px solid #00c8ff; }
 #boxLegend .lgBlob::before { background: rgba(255, 0, 255, 0.2); border: 1px solid #ff00ff; }
 #boxLegend .lgKernel::before { background: #ffffff; border: 1px solid #000000; }
-#boxLegend .lgMotion::before { border: 2px dashed #808080; }
-#boxLegend .lgBlobBox::before { border: 2px solid #808080; }
+#boxLegend .lgAlarmBox::before { border: 2px dashed #ffa500; }
+#boxLegend .lgFilterBox::before { border: 2px dotted #00c8ff; }
+#boxLegend .lgBlobBox::before { border: 2px solid #ff00ff; }
 
 /* Labels on zma's boxes, coloured like the box. */
 #imageFrame .boxLabel.replayLabel { color: #ffffff; white-space: pre; }
@@ -345,10 +350,6 @@
 /* The live stream's "Paused" text, while the recording plays over it. */
 .replaying [id^="stream-info-block"] { display: none; }
 
-/* After a zma test: thick green where some frame got through the stage, red
-   where none did. */
-.zones .testPass { stroke: #00c000 !important; stroke-width: 3px !important; }
-.zones .testFail { stroke: #ff0000 !important; stroke-width: 3px !important; }
 
 #zoneTestPanel { margin-top: 0.5em; }
 /* Full width of the panel, so the timeline spans the video. */

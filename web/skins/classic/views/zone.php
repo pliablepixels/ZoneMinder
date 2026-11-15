@@ -221,7 +221,8 @@ if ( count($other_zones) ) {
                 <rect id="objectFilterRect" x="0" y="0" width="0" height="0" style="display:none"><title><?php echo translate('RectangleFilteredArea') ?></title></rect>
                 <rect id="objectBlobRect" x="0" y="0" width="0" height="0" style="display:none"><title><?php echo translate('RectangleBlobArea') ?></title></rect>
                 <rect id="objectKernelRect" x="0" y="0" width="0" height="0" style="display:none"><title><?php echo translate('ZoneFilterSize') ?></title></rect>
-                <rect id="replayMotionRect" x="0" y="0" width="0" height="0" style="display:none"/>
+                <rect id="replayAlarmRect" x="0" y="0" width="0" height="0" style="display:none"/>
+                <rect id="replayFilterRect" x="0" y="0" width="0" height="0" style="display:none"/>
                 <rect id="replayBlobRect" x="0" y="0" width="0" height="0" style="display:none"/>
                 Sorry, your browser does not support inline SVG
               </svg>
@@ -327,7 +328,8 @@ if ( count($other_zones) ) {
                       <div class="lgFilter" data-rect="objectFilterRect"><?php echo translate('ZoneLegendFilter') ?></div>
                       <div class="lgBlob" data-rect="objectBlobRect"><?php echo translate('ZoneLegendBlob') ?></div>
                       <div class="lgKernel" data-rect="objectKernelRect"><?php echo translate('ZoneLegendKernel') ?></div>
-                      <div class="lgMotion" data-rect="replayMotionRect"><?php echo translate('ZoneLegendMotion') ?></div>
+                      <div class="lgAlarmBox" data-rect="replayAlarmRect"><?php echo translate('ZoneLegendAlarmBox') ?></div>
+                      <div class="lgFilterBox" data-rect="replayFilterRect"><?php echo translate('ZoneLegendFilterBox') ?></div>
                       <div class="lgBlobBox" data-rect="replayBlobRect"><?php echo translate('ZoneLegendBlobBox') ?></div>
                     </div>
                   </td>

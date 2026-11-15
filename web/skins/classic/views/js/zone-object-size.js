@@ -1046,16 +1046,16 @@
   // label: [above the top-left corner | under the bottom-left one, text].
   // parts: [[name, true | false | undefined]] - a green tick, red cross or ?
   // after each name - in a label above the box; none for no label.
-  function drawReplayBox(id, box, cls, parts) {
+  const REPLAY_RECTS = ['replayAlarmRect', 'replayFilterRect', 'replayBlobRect'];
+
+  function drawReplayBox(id, box, parts) {
     const pct = pixelBoxToPercent(box, monitorData[0].width, monitorData[0].height);
     if (!pct) {
       hideRects([id]);
       hideLabels([id + 'Label']);
       return;
     }
-    const r = setRect(id, pct.a, pct.b);
-    r.classList.toggle('testPass', cls === 'pass');
-    r.classList.toggle('testFail', cls === 'fail');
+    setRect(id, pct.a, pct.b);
     if (!parts) {
       hideLabels([id + 'Label']);
       return;
@@ -1086,23 +1086,13 @@
     if (f) {
       const str = zoneObjectSizeStrings;
       const replayStages = stageResults(f.verdict, test.now.checkMethod);
-      // Green or red per box: the motion box carries the alarmed and filtered
-      // counts, the blob box the blob size. Neither means an alarm by itself.
-      const tone = function(stages) {
-        const vs = stages.map(function(s) {
-          return replayStages[s];
-        });
-        if (vs.indexOf(false) >= 0) return 'fail';
-        return vs.indexOf(true) >= 0 && vs.indexOf(undefined) < 0 ? 'pass' : '';
-      };
-      // One label for every check, on the outer box.
+      // One label for every check, on the outermost box.
       const parts = [[str.replayAlarmed, replayStages.alarm]];
       if (test.now.checkMethod >= 2) parts.push([str.replayFiltered, replayStages.filter]);
       if (test.now.checkMethod >= 3) parts.push([str.replayBlob, replayStages.blob]);
-      drawReplayBox('replayMotionRect', f.fz.motionBox,
-          tone(test.now.checkMethod >= 2 ? ['alarm', 'filter'] : ['alarm']), parts);
-      drawReplayBox('replayBlobRect', f.fz.blobBox,
-          test.now.checkMethod >= 3 ? tone(['blob']) : '', null);
+      drawReplayBox('replayAlarmRect', f.fz.alarmBox, parts);
+      drawReplayBox('replayFilterRect', test.now.checkMethod >= 2 ? f.fz.filterBox : null, null);
+      drawReplayBox('replayBlobRect', test.now.checkMethod >= 3 ? f.fz.blobBox : null, null);
       if (info) {
         const z = test.now;
         info.textContent = str.replayFrame + ' ' + f.frame;
@@ -1121,8 +1111,8 @@
         if (f.verdict.scored) add(f.inAlarm ? str.replayInAlarm : str.replayScored);
       }
     } else {
-      hideRects(['replayMotionRect', 'replayBlobRect']);
-      hideLabels(['replayMotionRectLabel', 'replayBlobRectLabel']);
+      hideRects(REPLAY_RECTS);
+      hideLabels(['replayAlarmRectLabel']);
       if (info) info.textContent = video.currentTime.toFixed(2) + 's - ' + zoneObjectSizeStrings.replayNoMotion;
     }
     refreshOverlay();
@@ -1228,8 +1218,8 @@
     }
     const controls = document.getElementById('replayControls');
     if (controls) controls.style.display = 'none';
-    hideRects(['replayMotionRect', 'replayBlobRect']);
-    hideLabels(['replayMotionRectLabel', 'replayBlobRectLabel']);
+    hideRects(REPLAY_RECTS);
+    hideLabels(['replayAlarmRectLabel']);
     updateLegend();
     liveButtons(true);
     liveStream(true);

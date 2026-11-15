@@ -48,7 +48,8 @@ class ZoneStats {
     max_blob_size_ = 0;
     largest_blob_ = 0;
     alarm_box_ = {};
-    motion_box_ = {};
+    alarmed_box_ = {};
+    filtered_box_ = {};
     largest_blob_box_ = {};
     alarm_centre_ = {};
     score_ = 0;
@@ -88,10 +89,11 @@ class ZoneStats {
   // Largest blob before MinBlobPixels/MaxBlobPixels removed any, so a near
   // miss still shows how big the object came out. Not recorded in Stats.
   int largest_blob_;
-  // Where the change was at the last stage the frame reached - alarmed, then
-  // narrowed by the filter - set whether or not the frame scored, unlike
-  // alarm_box_. And the box of largest_blob_. Diagnostics for zma only.
-  Box motion_box_;
+  // Where the alarmed pixels were, and where those surviving the filter
+  // were - set whether or not the frame scored, unlike alarm_box_. And the
+  // box of largest_blob_. Diagnostics for zma only.
+  Box alarmed_box_;
+  Box filtered_box_;
   Box largest_blob_box_;
   Box alarm_box_;
   Vector2 alarm_centre_;

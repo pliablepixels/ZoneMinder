@@ -334,7 +334,7 @@ bool Zone::CheckAlarms(const Image *delta_image) {
 
   if (pixel_diff_count && stats.alarm_pixels_)
     stats.pixel_diff_ = pixel_diff_count/stats.alarm_pixels_;
-  if (stats.alarm_pixels_) stats.motion_box_ = alarmed_box;
+  if (stats.alarm_pixels_) stats.alarmed_box_ = alarmed_box;
 
   Debug(5, "Got %d alarmed pixels, need %d -> %d, avg pixel diff %d",
         stats.alarm_pixels_, min_alarm_pixels, max_alarm_pixels, stats.pixel_diff_);
@@ -426,7 +426,7 @@ bool Zone::CheckAlarms(const Image *delta_image) {
         }  // end for x
       }  // end foreach y line
       if (stats.alarm_filter_pixels_) {
-        stats.motion_box_ = Box(Vector2(filter_lo_x, filter_lo_y), Vector2(filter_hi_x, filter_hi_y));
+        stats.filtered_box_ = Box(Vector2(filter_lo_x, filter_lo_y), Vector2(filter_hi_x, filter_hi_y));
         alarm_lo_x = filter_lo_x;
         alarm_hi_x = filter_hi_x;
         alarm_lo_y = filter_lo_y;
@@ -434,6 +434,7 @@ bool Zone::CheckAlarms(const Image *delta_image) {
       }
     } else {
       stats.alarm_filter_pixels_ = stats.alarm_pixels_;
+      stats.filtered_box_ = stats.alarmed_box_;
     }
 
     if (config.record_diag_images) {
