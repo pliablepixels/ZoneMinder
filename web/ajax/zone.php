@@ -14,6 +14,9 @@ if ( !$monitor->Id() or !$monitor->canEdit() ) {
   ajaxError('Insufficient permissions');
 }
 
+// ponytail: fixed cap, an option if long events need it.
+const ZONE_TEST_TIMEOUT = 600;
+
 if ( isset($_REQUEST['command']) and $_REQUEST['command'] == 'test' ) {
   // Re-run detection over a recorded event with the form's zone settings, via
   // zma --dry-run so nothing is written. The zone must exist: zma rebuilds it
@@ -32,19 +35,27 @@ if ( isset($_REQUEST['command']) and $_REQUEST['command'] == 'test' ) {
     ajaxError('zma is not installed');
   }
 
-  // Each value as the Zones table stores it; anything else is refused rather
-  // than passed to a shell.
-  $numeric = array(
-    'MinPixelThreshold', 'MaxPixelThreshold', 'FilterX', 'FilterY',
-    'MinAlarmPixels', 'MaxAlarmPixels', 'MinFilterPixels', 'MaxFilterPixels',
-    'MinBlobPixels', 'MaxBlobPixels', 'MinBlobs', 'MaxBlobs',
+  // Each value as the Zones table stores it, within the range the zone form
+  // allows: field => array(max, whole numbers only). Anything else is refused
+  // rather than passed to a shell.
+  $limits = array(
+    'MinPixelThreshold' => array(255, true), 'MaxPixelThreshold' => array(255, true),
+    'FilterX' => array(15, true), 'FilterY' => array(15, true),
+    'MinAlarmPixels' => array(100, false), 'MaxAlarmPixels' => array(100, false),
+    'MinFilterPixels' => array(100, false), 'MaxFilterPixels' => array(100, false),
+    'MinBlobPixels' => array(100, false), 'MaxBlobPixels' => array(100, false),
+    'MinBlobs' => array(254, true), 'MaxBlobs' => array(254, true),
   );
   $newZone = isset($_REQUEST['newZone']) && is_array($_REQUEST['newZone']) ? $_REQUEST['newZone'] : array();
+  foreach ( $newZone as $field => $value ) {
+    if ( !is_string($value) ) ajaxError("Invalid value for $field");
+  }
   $sets = array();
-  foreach ( $numeric as $field ) {
+  foreach ( $limits as $field => $limit ) {
     if ( !isset($newZone[$field]) ) continue;
     $value = trim($newZone[$field]);
-    if ( $value !== '' and !preg_match('/^\d+(\.\d+)?$/', $value) ) {
+    if ( $value !== '' and (
+      !preg_match($limit[1] ? '/^\d{1,3}$/' : '/^\d{1,3}(\.\d{1,2})?$/', $value) or floatval($value) > $limit[0]) ) {
       ajaxError("Invalid value for $field");
     }
     $sets[] = $field.'='.$value;
@@ -63,13 +74,24 @@ if ( isset($_REQUEST['command']) and $_REQUEST['command'] == 'test' ) {
     $sets[] = 'Coords='.$newZone['Coords'];
   }
 
-  $command = escapeshellarg($zma).' --dry-run --json -e '.escapeshellarg($event->Id())
+  // One run per monitor at a time, and none longer than ZONE_TEST_TIMEOUT: a
+  // run decodes the whole event, and exec() outlives an abandoned request.
+  $lock = fopen(sys_get_temp_dir().'/zm_zone_test_'.$monitor->Id().'.lock', 'c');
+  if ( !$lock or !flock($lock, LOCK_EX|LOCK_NB) ) {
+    ajaxError('A test is already running for this monitor');
+  }
+  $command = 'timeout '.ZONE_TEST_TIMEOUT.' '.escapeshellarg($zma).' --dry-run --json -e '.escapeshellarg($event->Id())
     .' -z '.escapeshellarg($zid);
   foreach ( $sets as $set ) $command .= ' -s '.escapeshellarg($set);
 
   ZM\Debug("Zone test: $command");
   $output = array();
   exec($command.' 2>/dev/null', $output, $status);
+  flock($lock, LOCK_UN);
+  fclose($lock);
+  if ( $status == 124 ) {
+    ajaxError('The test took longer than '.ZONE_TEST_TIMEOUT.'s - try a shorter event');
+  }
 
   $result = array('zones' => array(), 'frames' => array(), 'done' => null);
   foreach ( $output as $line ) {

@@ -55,7 +55,7 @@ without needing live cameras.
  -m, --monitor <monitor_id>       - Override monitor ID (use a different monitor's zone config)
  -c, --create-events              - Create new events instead of updating the original
  -a, --save-analysis              - Write analysis JPEGs showing zone alarm overlays
- -n, --dry-run                    - Write nothing: no DB updates, no new events, no files
+ -n, --dry-run                    - Change no events or scores and create none (zma's own log is still written)
  -j, --json                       - Print zone thresholds and per-frame zone stats as JSON lines
  -z, --zone <zone_id>             - The zone that --set applies to
  -s, --set <Column>=<value>       - Replace a saved value of that zone for this run only,
@@ -96,7 +96,7 @@ void Usage() {
   fprintf(stderr, "  -m, --monitor <monitor_id>   : Override monitor ID for zone config\n");
   fprintf(stderr, "  -c, --create-events          : Create new events instead of updating the original\n");
   fprintf(stderr, "  -a, --save-analysis          : Write analysis JPEGs showing zone alarm overlays\n");
-  fprintf(stderr, "  -n, --dry-run                : Write nothing - no DB updates, events or files\n");
+  fprintf(stderr, "  -n, --dry-run                : Change no events or scores and create none\n");
   fprintf(stderr, "  -j, --json                   : Print zone thresholds and per-frame zone stats as JSON lines\n");
   fprintf(stderr, "  -z, --zone <zone_id>         : The zone that --set applies to\n");
   fprintf(stderr, "  -s, --set <Column>=<value>   : Replace a saved value of that zone for this run (repeatable)\n");
@@ -732,7 +732,10 @@ int main(int argc, char *argv[]) {
       continue;
     }
 
-    // Run motion detection
+    // Run motion detection. DetectMotion skips some zones on some frames
+    // (inclusive, exclusive, behind a preclusive one), which would otherwise
+    // report the last frame they were checked.
+    monitor->ClearZoneStats();
     Event::StringSet zoneSet;
     Image analysis_image;
     unsigned int score = monitor->AnalyseFrame(*frame_image, zoneSet,
