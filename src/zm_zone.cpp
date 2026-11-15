@@ -624,6 +624,8 @@ bool Zone::CheckAlarms(const Image *delta_image) {
                       ||
                       (max_blob_pixels && bs->count > max_blob_pixels)
                     ) {
+                      // Recycled here, so the final pass below never sees it.
+                      stats.blob_sizes_.push_back(bs->count);
                       if (( monitor->GetOptSaveJPEGs() > 1 ) || config.record_diag_images) {
                         for (int sy = bs->lo_y; sy <= bs->hi_y; sy++) {
                           spdiff = diff_buff + ((diff_width * sy) + bs->lo_x);
@@ -694,6 +696,7 @@ bool Zone::CheckAlarms(const Image *delta_image) {
       for (uint32 i = 1; i < kWhite; i++) {
         BlobStats *bs = &blob_stats[i];
         if (bs->count) {
+          stats.blob_sizes_.push_back(bs->count);
           if (bs->count > stats.largest_blob_) {
             stats.largest_blob_ = bs->count;
             stats.largest_blob_box_ = Box(Vector2(bs->lo_x, bs->lo_y), Vector2(bs->hi_x, bs->hi_y));

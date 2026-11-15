@@ -24,6 +24,8 @@
 #include "zm_logger.h"
 #include "zm_vector2.h"
 
+#include <vector>
+
 class ZoneStats {
  public:
   explicit ZoneStats(int zone_id) :
@@ -47,6 +49,7 @@ class ZoneStats {
     min_blob_size_ = 0;
     max_blob_size_ = 0;
     largest_blob_ = 0;
+    blob_sizes_.clear();
     alarm_box_ = {};
     motion_box_ = {};
     largest_blob_box_ = {};
@@ -88,6 +91,9 @@ class ZoneStats {
   // Largest blob before MinBlobPixels/MaxBlobPixels removed any, so a near
   // miss still shows how big the object came out. Not recorded in Stats.
   int largest_blob_;
+  // Every blob's final size, kept or removed, so zma's caller can recount
+  // blobs for other Min/MaxBlobPixels. Not recorded in Stats.
+  std::vector<int> blob_sizes_;
   // Where the change was at the last stage the frame reached - alarmed, then
   // narrowed by the filter - set whether or not the frame scored, unlike
   // alarm_box_. And the box of largest_blob_. Diagnostics for zma only.
