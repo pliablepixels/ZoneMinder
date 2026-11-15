@@ -1,8 +1,12 @@
 'use strict';
 //
-// Derives a zone's detection thresholds from a rectangle drawn round the
-// smallest object that should alarm. Ratios and their defaults are in
-// zone.php. Coordinates use the editor's percent space (0..100 per axis).
+// The zone editor's detection tools. The object box derives a zone's
+// thresholds from a rectangle drawn round the smallest object that should
+// alarm (ratios and their defaults are in zone.php). The test panel runs zma
+// over a recorded event with the form's settings and replays the result over
+// the event's video or JPEG frames. Coordinates use the editor's percent
+// space (0..100 per axis). The pure functions up top are exported for
+// tests/js/zone-object-size.test.js.
 //
 (function(global) {
   // definezone.rst [G]. Above the Default preset's 25.
@@ -350,7 +354,6 @@
     module.exports = api;
     return;
   }
-  global.ZM_ZoneObjectSize = api;
 
   //
   // Browser-only below here.
@@ -406,7 +409,6 @@
     });
     return out;
   }
-  let snapshotTaken = false;
 
   function imageFeed() {
     return document.getElementById('imageFeed' + zone.MonitorId);
@@ -416,23 +418,29 @@
   // uploaded. Kept hidden rather than removed so toggling reuses it.
   let stillShown = false;
 
-  function stillElement() {
-    let img = document.getElementById('objectStill');
-    if (img) return img;
+  // The element id inside the feed, made hidden on first use. underSvg puts a
+  // picture after the stream, so it covers the live view, but before the SVG,
+  // so the zone outline and boxes still paint on top of it.
+  function feedChild(tag, id, cls, underSvg) {
+    let el = document.getElementById(id);
+    if (el) return el;
     const feed = imageFeed();
     if (!feed) return null;
-    img = document.createElement('img');
-    img.id = 'objectStill';
-    img.style.display = 'none';
+    el = document.createElement(tag);
+    el.id = id;
+    if (cls) el.className = cls;
+    el.style.display = 'none';
     const svg = document.getElementById('zoneSVG');
-    // After the stream so it covers the live view, before the SVG so the zone
-    // outline still paints on top.
-    if (svg && svg.parentNode === feed) {
-      feed.insertBefore(img, svg);
+    if (underSvg && svg && svg.parentNode === feed) {
+      feed.insertBefore(el, svg);
     } else {
-      feed.appendChild(img);
+      feed.appendChild(el);
     }
-    return img;
+    return el;
+  }
+
+  function stillElement() {
+    return feedChild('img', 'objectStill', '', true);
   }
 
   function hasStill() {
@@ -503,16 +511,7 @@
   // Not SVG text: the SVG uses preserveAspectRatio="none", which would
   // stretch it out of shape.
   function boxLabel(id) {
-    let el = document.getElementById(id);
-    if (!el) {
-      const feed = imageFeed();
-      if (!feed) return null;
-      el = document.createElement('div');
-      el.id = id;
-      el.className = 'boxLabel';
-      feed.appendChild(el);
-    }
-    return el;
+    return feedChild('div', id, 'boxLabel', false);
   }
 
   // Above the box's top-left corner, or inside it near the top edge.
@@ -527,17 +526,24 @@
     return el;
   }
 
-  function hideLabels(ids) {
-    ids.forEach(function(id) {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
-    });
+  // The capture frame, as boxPercentForPixels takes it.
+  function captureFrame() {
+    return {width: monitorData[0].width, height: monitorData[0].height, maxX: maxX, maxY: maxY};
   }
 
-  // Capture pixels, so the figure means the same at any window size.
+  // A box's sides in capture pixels - the units CheckAlarms counts in, so a
+  // size means the same at any window size.
+  function boxPx(a, b) {
+    return {
+      w: Math.abs(b.x - a.x) / maxX * monitorData[0].width,
+      h: Math.abs(b.y - a.y) / maxY * monitorData[0].height,
+    };
+  }
+
   function drawSizeLabel(x, y, w, h, saved) {
-    const wPx = Math.round(w / maxX * monitorData[0].width);
-    const hPx = Math.round(h / maxY * monitorData[0].height);
+    const px = boxPx({x: x, y: y}, {x: x + w, y: y + h});
+    const wPx = Math.round(px.w);
+    const hPx = Math.round(px.h);
     placeLabel('objectSizeLabel', (saved ? zoneObjectSizeStrings.labelEstimate :
         zoneObjectSizeStrings.labelObject) + ' ' + wPx + '×' + hPx, x, y);
   }
@@ -571,6 +577,7 @@
     return r;
   }
 
+  // Hides overlay elements by id: rects, labels, the resize handle.
   function hideRects(ids) {
     ids.forEach(function(id) {
       const r = document.getElementById(id);
@@ -581,16 +588,7 @@
   // A div rather than an SVG rect, for the same reason as the label: the
   // stretched viewBox would distort it.
   function resizeHandle() {
-    let el = document.getElementById('objectResizeHandle');
-    if (!el) {
-      const feed = imageFeed();
-      if (!feed) return null;
-      el = document.createElement('div');
-      el.id = 'objectResizeHandle';
-      el.style.display = 'none';
-      feed.appendChild(el);
-    }
-    return el;
+    return feedChild('div', 'objectResizeHandle', '', false);
   }
 
   // saved: the box was rebuilt from stored thresholds rather than drawn.
@@ -608,8 +606,8 @@
     drawSizeLabel(shownBox.a.x, shownBox.a.y,
         shownBox.b.x - shownBox.a.x, shownBox.b.y - shownBox.a.y, shownBox.saved);
     // Whichever box is on screen, the size fields describe it.
-    showBoxSize((shownBox.b.x - shownBox.a.x) / maxX * monitorData[0].width,
-        (shownBox.b.y - shownBox.a.y) / maxY * monitorData[0].height);
+    const px = boxPx(shownBox.a, shownBox.b);
+    showBoxSize(px.w, px.h);
     const handle = resizeHandle();
     if (handle) {
       handle.style.left = shownBox.b.x + '%';
@@ -621,7 +619,7 @@
   function hideRect() {
     hideRects(['objectRect'].concat(INNER_RECT_IDS));
     shownBox = null;
-    hideLabels(['objectSizeLabel', 'objectResizeHandle']);
+    hideRects(['objectSizeLabel', 'objectResizeHandle']);
     updateLegend();
   }
 
@@ -650,10 +648,8 @@
   // they take no part in detection.
   function drawThresholds(box) {
     const form = document.zoneForm;
-    const W = monitorData[0].width;
-    const H = monitorData[0].height;
-    const boxPx = Math.abs(box.b.x - box.a.x) / maxX * W *
-        Math.abs(box.b.y - box.a.y) / maxY * H;
+    const sides = boxPx(box.a, box.b);
+    const areaPx = sides.w * sides.h;
     const zonePx = zonePixels();
     // Each must fit inside the one before - validateForm refuses the save
     // otherwise - so say so now, with its message, rather than at Save.
@@ -668,7 +664,7 @@
         el.title = tooBig ? rules[i] : '';
       }
       if (pct > 0) outer = pct;
-      const inner = (boxPx > 0) ? innerBox(box, pct / 100 * zonePx / boxPx) : null;
+      const inner = (areaPx > 0) ? innerBox(box, pct / 100 * zonePx / areaPx) : null;
       if (inner) {
         setRect(t.id, inner.a, inner.b).classList.toggle('outOfOrder', tooBig);
       } else {
@@ -698,15 +694,13 @@
     hideRect();
     if (!zoneIsMeasurable()) return;
     const form = document.zoneForm;
-    const W = monitorData[0].width;
-    const H = monitorData[0].height;
     const el = form.elements['newZone[MinAlarmPixels]'];
     const area = savedObjectPixels(el && !el.disabled ? parseFloat(el.value) : NaN,
         zonePixels(), currentRatios().fraction);
-    const sides = boxSidesForArea(area, W / H);
+    const frame = captureFrame();
+    const sides = boxSidesForArea(area, frame.width / frame.height);
     if (!sides) return;
-    const box = boxPercentForPixels(sides.w, sides.h,
-        {width: W, height: H, maxX: maxX, maxY: maxY});
+    const box = boxPercentForPixels(sides.w, sides.h, frame);
     if (!box) return;
     drawRect(box.a, box.b, true);
     drawThresholds(box);
@@ -743,7 +737,6 @@
   function forgetMeasurement() {
     clearChangeMarks();
     undoSnapshot = null;
-    snapshotTaken = false;
     setLastBox(null);
     const btn = document.getElementById('objectSizeUndoBtn');
     if (btn) btn.style.display = 'none';
@@ -772,17 +765,6 @@
     }
   }
 
-  function takeSnapshot(form) {
-    undoSnapshot = {};
-    MANAGED_FIELDS.forEach(function(field) {
-      const el = form.elements['newZone[' + field + ']'];
-      undoSnapshot[field] = el ? el.value : '';
-    });
-    undoSnapshot.CheckMethod = form.elements['newZone[CheckMethod]'].value;
-    const btn = document.getElementById('objectSizeUndoBtn');
-    if (btn) btn.style.display = '';
-  }
-
   function undo() {
     if (!undoSnapshot) return;
     const form = document.zoneForm;
@@ -799,16 +781,17 @@
   // Runs on every mousemove, so nothing here may block - no alert or confirm.
   function apply(a, b) {
     const form = document.zoneForm;
-    // Capture pixels: the units CheckAlarms counts in.
-    const wPx = Math.abs(b.x - a.x) / maxX * monitorData[0].width;
-    const hPx = Math.abs(b.y - a.y) / maxY * monitorData[0].height;
+    const px = boxPx(a, b);
     const zonePx = zonePixels();
     // A box this small is normal mid-drag. Change nothing, say nothing.
-    if (!(wPx * hPx > 0) || !(zonePx > 0)) return false;
+    if (!(px.w * px.h > 0) || !(zonePx > 0)) return false;
 
-    if (!snapshotTaken) {
-      takeSnapshot(form);
-      snapshotTaken = true;
+    // Every box in one armed session is measured against the state before the
+    // first, so undo and the highlighting stay anchored there.
+    if (!undoSnapshot) {
+      undoSnapshot = formValues();
+      const undoBtn = document.getElementById('objectSizeUndoBtn');
+      if (undoBtn) undoBtn.style.display = '';
     }
 
     setLastBox({a: {x: a.x, y: a.y}, b: {x: b.x, y: b.y}});
@@ -816,7 +799,7 @@
     // Sensitivity is read from the snapshot, not the live fields: mid-drag
     // those already hold our own writes.
     const values = zoneSettingsForObject(
-        wPx * hPx, zonePx, undoSnapshot, currentRatios());
+        px.w * px.h, zonePx, undoSnapshot, currentRatios());
     if (!values) return false;
 
     // applyCheckMethod is required: assigning to a select does not fire
@@ -855,8 +838,9 @@
   function finishDrag(a, b) {
     if (!apply(a, b)) return;
     const form = document.zoneForm;
-    const wPx = Math.abs(b.x - a.x) / maxX * monitorData[0].width;
-    const hPx = Math.abs(b.y - a.y) / maxY * monitorData[0].height;
+    const px = boxPx(a, b);
+    const wPx = px.w;
+    const hPx = px.h;
     showBoxSize(wPx, hPx);
     const fx = Math.max(
         parseInt(form.elements['newZone[FilterX]'].value, 10) || 0,
@@ -896,7 +880,7 @@
             .replace('%2', fmt(why.best)).replace('%3', fmt(why.need)));
       }
     }
-    if (t.unknown) parts.push(t.unknown + ' ' + str.testUnknown);
+    if (t.unknown) parts.push(str.testUnknown.replace('%1', t.unknown));
     if (test.noVideo) parts.push(str.testNoVideo);
     out.appendChild(document.createTextNode(' · ' + parts.join(' · ')));
   }
@@ -1045,8 +1029,8 @@
   // the frame on screen drawn over it and a timeline of every frame.
   //
   let replay = null;
-  // Pass and fail only - which check failed is in the panel on the image.
-  // The colours are zone.css's, so the timeline and its legend cannot drift.
+  // Pass, fail, not known, and a strip for frames in an alarm - which check
+  // failed is in the panel on the image. The colours are zone.css's, so the timeline and its legend cannot drift.
   function timelineColours() {
     const css = getComputedStyle(document.getElementById('zoneForm'));
     const v = function(name) {
@@ -1061,24 +1045,11 @@
 
   // A <video> or <img> filling the feed under the overlay, made once.
   function replayElement(tag, id) {
-    let el = document.getElementById(id);
-    if (el) return el;
-    const feed = imageFeed();
-    if (!feed) return null;
-    el = document.createElement(tag);
-    el.id = id;
-    el.className = 'replayMedia';
-    el.style.display = 'none';
-    if (tag === 'video') {
+    const el = feedChild(tag, id, 'replayMedia', true);
+    if (el && tag === 'video') {
       el.muted = true;
       el.playsInline = true;
       el.preload = 'auto';
-    }
-    const svg = document.getElementById('zoneSVG');
-    if (svg && svg.parentNode === feed) {
-      feed.insertBefore(el, svg);
-    } else {
-      feed.appendChild(el);
     }
     return el;
   }
@@ -1103,7 +1074,7 @@
         fire(type);
         if (!player.paused) timer = setTimeout(advance, 1000 / fps);
       };
-      img.src = zmAuth.appendTo(thisUrl + '?view=image&eid=' + eid + '&fid=' + id);
+      img.src = zmAuth.appendTo(thisUrl + imagePrefix + eid + '&fid=' + id);
     };
     const advance = function() {
       if (id >= total) {
@@ -1169,8 +1140,7 @@
 
   function drawTimeline() {
     const canvas = document.getElementById('replayTimeline');
-    const video = media;
-    if (!canvas || !replay || !video) return;
+    if (!canvas || !replay || !media) return;
     const dpr = window.devicePixelRatio || 1;
     const w = canvas.clientWidth * dpr;
     const h = canvas.clientHeight * dpr;
@@ -1180,7 +1150,7 @@
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = 'rgba(128,128,128,0.25)';
     ctx.fillRect(0, 0, w, h);
-    const duration = video.duration || replay.lastT || 1;
+    const duration = media.duration || replay.lastT || 1;
     const barW = Math.max(1, w / Math.max(replay.totalFrames, 1));
     // The legend lists only colours on the strip. Grey is the background.
     const seen = {legendNone: true};
@@ -1197,7 +1167,7 @@
       }
     });
     ctx.fillStyle = '#000000';
-    ctx.fillRect(video.currentTime / duration * w - dpr, 0, 2 * dpr, h);
+    ctx.fillRect(media.currentTime / duration * w - dpr, 0, 2 * dpr, h);
     document.querySelectorAll('#replayLegend span').forEach(function(item) {
       item.style.display = seen[item.className] ? '' : 'none';
     });
@@ -1211,7 +1181,7 @@
   }
 
   // Top left of the image, one row per check: the minimum set, what this frame
-  // measured, and a tick or cross. rows: [[swatch class, name, set, found, ok]].
+  // measured, and a tick or cross. rows: [[swatch class, name, min, got, ok]].
   function showReplayStats(rows) {
     const el = boxLabel('replayStats');
     if (!el) return;
@@ -1238,9 +1208,8 @@
   }
 
   function showReplayFrame() {
-    const video = media;
-    if (!replay || !video) return;
-    const f = frameAt(replay.frames, video.currentTime, replay.tol);
+    if (!replay || !media) return;
+    const f = frameAt(replay.frames, media.currentTime, replay.tol);
     const info = document.getElementById('replayFrameInfo');
     if (f) {
       const str = zoneObjectSizeStrings;
@@ -1278,8 +1247,8 @@
       }
     } else {
       hideRects(REPLAY_RECTS);
-      hideLabels(['replayStats']);
-      if (info) info.textContent = video.currentTime.toFixed(2) + 's - ' + zoneObjectSizeStrings.replayNoMotion;
+      hideRects(['replayStats']);
+      if (info) info.textContent = media.currentTime.toFixed(2) + 's - ' + zoneObjectSizeStrings.replayNoMotion;
     }
     // Not refreshOverlay: the box does not change with the frame, and it would
     // rewrite the size fields on every frame of playback.
@@ -1300,11 +1269,11 @@
   // This zone's frames from zma's output, judged as zma judged them until the
   // form changes.
   function buildTest(resp, zoneId, sent) {
-    const zone = (resp.zones || []).filter(function(z) {
+    const tested = (resp.zones || []).filter(function(z) {
       return z.id == zoneId;
     })[0];
-    if (!zone || !resp.done) return null;
-    const ran = zoneThresholds(sent, zone.area);
+    if (!tested || !resp.done) return null;
+    const ran = zoneThresholds(sent, tested.area);
     const frames = [];
     (resp.frames || []).forEach(function(f) {
       const fz = (f.zones || []).filter(function(z) {
@@ -1315,7 +1284,7 @@
     frames.sort(function(x, y) {
       return x.frame - y.frame;
     });
-    return {zone: zone, done: resp.done, frames: frames, ran: ran,
+    return {zone: tested, done: resp.done, frames: frames, ran: ran,
       measured: measuredKey(sent)};
   }
 
@@ -1418,7 +1387,7 @@
     const controls = document.getElementById('replayControls');
     if (controls) controls.style.display = 'none';
     hideRects(REPLAY_RECTS);
-    hideLabels(['replayStats']);
+    hideRects(['replayStats']);
     updateLegend();
     liveButtons(true);
     liveStream(true);
@@ -1426,9 +1395,8 @@
   }
 
   function stepReplay(direction) {
-    const video = media;
-    if (!replay || !video || !replay.frames.length) return;
-    const now = video.currentTime;
+    if (!replay || !media || !replay.frames.length) return;
+    const now = media.currentTime;
     const eps = replay.tol / 2;
     const list = replay.frames;
     let target = null;
@@ -1443,8 +1411,8 @@
       target = before[before.length - 1];
     }
     if (target) {
-      video.pause();
-      video.currentTime = target.t;
+      media.pause();
+      media.currentTime = target.t;
     }
   }
 
@@ -1724,9 +1692,7 @@
       const w = document.getElementById('objectWidthPx');
       const h = document.getElementById('objectHeightPx');
       if (!w || !h) return;
-      let box = boxPercentForPixels(parseFloat(w.value), parseFloat(h.value),
-          {width: monitorData[0].width, height: monitorData[0].height,
-            maxX: maxX, maxY: maxY});
+      let box = boxPercentForPixels(parseFloat(w.value), parseFloat(h.value), captureFrame());
       if (!box) {
         alert(zoneObjectSizeStrings.sizeNeeded);
         return;
@@ -1777,9 +1743,6 @@
       evt.preventDefault();
       dragging = true;
       if (feed.setPointerCapture) feed.setPointerCapture(evt.pointerId);
-      // snapshotTaken is deliberately not reset: every box in one armed
-      // session is measured against the state before the first, so undo and
-      // the highlighting stay anchored there.
       startPct = toPercent(evt, feed);
       drawRect(startPct, startPct);
     });
@@ -1843,38 +1806,24 @@
       if (done) edit = null;
     }
 
-    const rect = document.getElementById('objectRect');
-    if (rect) {
-      // Armed or not, a press on the box moves it; startEdit stops it reaching
-      // the feed, so only a press outside the box starts a new one.
-      rect.addEventListener('pointerdown', function(evt) {
-        startEdit(evt, 'move');
+    // Armed or not, a press on the box moves it and one on the handle resizes
+    // it; startEdit stops it reaching the feed, so only a press outside the
+    // box starts a new one.
+    [[document.getElementById('objectRect'), 'move'], [resizeHandle(), 'resize']].forEach(function(t) {
+      const el = t[0];
+      if (!el) return;
+      el.addEventListener('pointerdown', function(evt) {
+        startEdit(evt, t[1]);
       });
-      rect.addEventListener('pointermove', function(evt) {
+      el.addEventListener('pointermove', function(evt) {
         moveEdit(evt, false);
       });
-      rect.addEventListener('pointerup', function(evt) {
-        moveEdit(evt, true);
+      ['pointerup', 'pointercancel'].forEach(function(type) {
+        el.addEventListener(type, function(evt) {
+          moveEdit(evt, true);
+        });
       });
-      rect.addEventListener('pointercancel', function(evt) {
-        moveEdit(evt, true);
-      });
-    }
-    const handle = resizeHandle();
-    if (handle) {
-      handle.addEventListener('pointerdown', function(evt) {
-        startEdit(evt, 'resize');
-      });
-      handle.addEventListener('pointermove', function(evt) {
-        moveEdit(evt, false);
-      });
-      handle.addEventListener('pointerup', function(evt) {
-        moveEdit(evt, true);
-      });
-      handle.addEventListener('pointercancel', function(evt) {
-        moveEdit(evt, true);
-      });
-    }
+    });
 
     initReplay();
     showInitialBox();
