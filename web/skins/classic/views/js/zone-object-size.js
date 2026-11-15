@@ -1066,9 +1066,10 @@
       const replayStages = stageResults(f.verdict, test.now.checkMethod);
       // Green or red per box: the motion box carries the alarmed and filtered
       // counts, the blob box the blob size. Neither means an alarm by itself.
+      // Same marks as the label on the image.
       const met = function(stage) {
         const v = replayStages[stage];
-        return v === true ? str.met : v === false ? str.notMet : '?';
+        return v === true ? '\u2713' : v === false ? '\u2717' : '?';
       };
       const tone = function(stages) {
         const vs = stages.map(function(s) {
@@ -1092,10 +1093,11 @@
           ['filter', str.replayFiltered, f.fz.filter, z.minFilter, 2],
           ['blob', str.labelBlob, f.fz.largestBlob, z.minBlob, 3]].forEach(function(r) {
           if (z.checkMethod < r[4] || replayStages[r[0]] === undefined) return;
-          parts.push(r[1] + ' ' + fmt(r[2]) + '/' + fmt(r[3]) + ': ' + met(r[0]));
+          parts.push(r[1] + ' ' + fmt(r[2]) + '/' + fmt(r[3]) + ' ' + met(r[0]));
         });
         if (f.verdict.unknown) parts.push(zoneObjectSizeStrings.testUnknownFrame);
-        parts.push(f.inAlarm ? str.replayInAlarm : f.verdict.scored ? str.replayScored : str.replayNoAlarm);
+        // A failed check already shows as a cross; say only what passing adds.
+        if (f.verdict.scored) parts.push(f.inAlarm ? str.replayInAlarm : str.replayScored);
         info.textContent = parts.join(' · ');
       }
     } else {

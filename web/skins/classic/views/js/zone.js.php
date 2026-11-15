@@ -122,13 +122,10 @@ var zoneObjectSizeStrings = {
   'replayFiltered': '<?php echo addslashes(translate('ZoneReplayFiltered')) ?>',
   'replayScored': '<?php echo addslashes(translate('ZoneReplayScored')) ?>',
   'testNotDetecting': '<?php echo addslashes(translate('ZoneTestNotDetecting')) ?>',
-  'replayNoAlarm': '<?php echo addslashes(translate('ZoneReplayNoAlarm')) ?>',
   'replayNoMotion': '<?php echo addslashes(translate('ZoneReplayNoMotion')) ?>',
   'testSummary': '<?php echo addslashes(translate('ZoneTestSummary')) ?>',
   'testWouldAlarm': '<?php echo addslashes(translate('ZoneTestWouldAlarm')) ?>',
   'testWouldNotAlarm': '<?php echo addslashes(translate('ZoneTestWouldNotAlarm')) ?>',
-  'met': '<?php echo addslashes(translate('ZoneTestMet')) ?>',
-  'notMet': '<?php echo addslashes(translate('ZoneTestNotMet')) ?>',
   'replayInAlarm': '<?php echo addslashes(translate('ZoneReplayInAlarm')) ?>'
 };
 
