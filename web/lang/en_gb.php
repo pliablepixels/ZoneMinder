@@ -612,6 +612,7 @@ $SLANG = array(
     'NumPresets'            => 'Num Presets',
     'ObjDetect'             => 'ObjDetect',
     'ObjectImageLive'       => 'Go back to the live view',
+    'ObjectImageLiveOff'    => 'Showing a still image - click the image button to go back to live',
     'ObjectImageLoad'       => 'Replace this image',
     'ObjectImageNotAnImage' => 'That file could not be read as an image',
     'ObjectImageUse'        => 'Measure against a still image instead of the live view',

@@ -439,8 +439,9 @@
     if (!img || !hasStill()) return;
     img.style.display = '';
     stillShown = true;
-    // Not monitors[i].pause(), so the play/pause buttons stay in sync.
-    streamCmdPause();
+    // Stopped like under a replay: a paused stream kept its fps moving.
+    liveStream(false);
+    liveButtons(false, zoneObjectSizeStrings.stillLiveOff);
     updateStillButton();
   }
 
@@ -454,7 +455,10 @@
 
   function showLive() {
     hideStill();
-    streamCmdPlay();
+    // A replay still up keeps the stream off; its Exit restarts it.
+    if (replay) return;
+    liveButtons(true);
+    liveStream(true);
   }
 
   function zoneIsMeasurable() {
@@ -1167,7 +1171,7 @@
     };
     if (stillShown) hideStill();
     liveStream(false);
-    liveButtons(false);
+    liveButtons(false, zoneObjectSizeStrings.liveOff);
     video.src = src;
     video.style.display = '';
     const controls = document.getElementById('replayControls');
@@ -1188,7 +1192,8 @@
 
   // The live stream's buttons do nothing to the recording, so grey them out
   // while it is up.
-  function liveButtons(on) {
+  // offTitle: how to get back to live, shown on the greyed buttons.
+  function liveButtons(on, offTitle) {
     const feed = imageFeed();
     if (feed) feed.classList.toggle('replaying', !on);
     ['playBtn', 'pauseBtn', 'analyseBtn'].forEach(function(id) {
@@ -1198,9 +1203,10 @@
         b.disabled = false;
         if (b.dataset.liveTitle !== undefined) b.title = b.dataset.liveTitle;
       } else {
+        // Keep the live title from the first time, not an off one.
+        if (!b.disabled) b.dataset.liveTitle = b.title;
         b.disabled = true;
-        b.dataset.liveTitle = b.title;
-        b.title = zoneObjectSizeStrings.liveOff;
+        b.title = offTitle;
       }
     });
   }
@@ -1347,14 +1353,6 @@
 
     const undoBtn = document.getElementById('objectSizeUndoBtn');
     if (undoBtn) undoBtn.addEventListener('click', undo);
-
-    // zone.js already binds streamCmdPlay here, so this only drops the still.
-    const playButton = document.getElementById('playBtn');
-    if (playButton) {
-      playButton.addEventListener('click', function() {
-        if (stillShown) hideStill();
-      });
-    }
 
     const imageBtn = document.getElementById('objectImageBtn');
     const replaceBtn = document.getElementById('objectImageReplaceBtn');
