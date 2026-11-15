@@ -906,14 +906,16 @@
   function runTest() {
     const btn = document.getElementById('zoneTestBtn');
     const select = document.getElementById('zoneTestEvent');
+    const typed = document.getElementById('zoneTestEventId');
     const out = document.getElementById('zoneTestResult');
     const form = document.zoneForm;
+    // A typed event id wins over the list; the server checks it is this
+    // monitor's.
     const data = {
       command: 'test',
-      mid: zone.MonitorId, zid: form.elements['zid'].value, eid: select.value,
+      mid: zone.MonitorId, zid: form.elements['zid'].value,
+      eid: typed && typed.value.trim() !== '' ? typed.value.trim() : select.value,
     };
-    // Read now: the event picked may change while zma runs.
-    const video = select.options[select.selectedIndex].getAttribute('data-video');
     // zma measures with the form's pixel threshold, filter and blob size, but
     // with every alarmed/filtered limit off and all three stages on, so it
     // measures every stage of every frame instead of stopping at the first
@@ -965,7 +967,9 @@
           rejudgeTest();
           // Closed while zma ran: its Exit button would be hidden with it.
           const panel = document.getElementById('zoneTestPanel');
-          if (video && !(panel && panel.style.display === 'none')) openReplay(video);
+          // The server sends the video for the event it ran, so a pick changed
+          // mid-run cannot pair the wrong one.
+          if (resp.video && !(panel && panel.style.display === 'none')) openReplay(resp.video);
         })
         .fail(function(jqxhr, textStatus, error) {
           out.textContent = textStatus + (error ? ': ' + error : '');
@@ -1322,7 +1326,7 @@
       ['input', 'change'].forEach(function(type) {
         document.zoneForm.addEventListener(type, function(evt) {
           // Picking another event is not a settings change.
-          if (evt.target.id !== 'zoneTestEvent') rejudgeTest();
+          if (evt.target.id !== 'zoneTestEvent' && evt.target.id !== 'zoneTestEventId') rejudgeTest();
         });
       });
     }

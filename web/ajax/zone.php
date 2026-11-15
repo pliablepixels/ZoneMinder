@@ -111,6 +111,8 @@ if ( isset($_REQUEST['command']) and $_REQUEST['command'] == 'test' ) {
     // No JSON at all usually means a zma from before --json existed.
     ajaxError($status ? "zma failed (exit $status) - see the zma_e".$event->Id().' log' : 'zma returned no results');
   }
+  # A video to replay the result over; JPEG-only events can be tested but not replayed.
+  $result['video'] = $event->DefaultVideo() ? $event->getStreamSrc(array('mode'=>'mp4')) : '';
   ajaxResponse($result);
 }
 

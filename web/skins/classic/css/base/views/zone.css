@@ -367,6 +367,7 @@
 #zoneTestPanel { margin-top: 0.5em; }
 /* Full width of the panel, so the timeline spans the video. */
 #zoneTest { width: 100%; }
+#zoneTestEventId { width: 8em; }
 #zoneTestPanel .zoneTestTitle { cursor: help; font-weight: bold; }
 
 /* Same colours as the threshold rects on the image. Under the table ids, or

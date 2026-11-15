@@ -285,12 +285,18 @@ if ( count($other_zones) ) {
                   <td>
                     <select id="zoneTestEvent" aria-label="<?php echo translate('Event') ?>"<?php echo $test_disabled ? ' disabled' : '' ?>>
 <?php foreach ( $test_events as $test_event ) {
-  # A video to replay the result over; JPEG-only events can be tested but not replayed.
-  $video = $test_event->DefaultVideo() ? $test_event->getStreamSrc(array('mode'=>'mp4')) : '';
+  # What was in it, so the right event is easy to find: the notes (where
+  # detection writes what it saw) or the cause, and any tags.
+  $what = trim(preg_replace('/\s+/', ' ', $test_event->Notes() ? $test_event->Notes() : $test_event->Cause()));
+  if ( mb_strlen($what) > 60 ) $what = mb_substr($what, 0, 59).'…';
+  $tags = array_map(function($tag) { return $tag->Name(); }, $test_event->Tags());
+  $text = $test_event->Id().' - '.$test_event->StartDateTime().' ('.round($test_event->Length()).'s) '.$what
+    .(count($tags) ? ' ['.implode(', ', $tags).']' : '');
 ?>
-                      <option value="<?php echo $test_event->Id() ?>" data-video="<?php echo validHtmlStr($video) ?>"><?php echo $test_event->Id().' - '.validHtmlStr($test_event->StartDateTime()).' ('.round($test_event->Length()).'s, '.validHtmlStr($test_event->Cause()).')' ?></option>
+                      <option value="<?php echo $test_event->Id() ?>"><?php echo validHtmlStr($text) ?></option>
 <?php } ?>
                     </select>
+                    <input type="number" id="zoneTestEventId" min="1" step="1" placeholder="<?php echo translate('ZoneTestEventId') ?>" title="<?php echo translate('ZoneTestEventIdHelp') ?>"<?php echo $test_disabled ? ' disabled' : '' ?>/>
                     <!-- A disabled button gets no hover, so the reason sits on a wrapper. -->
                     <span title="<?php echo validHtmlStr($test_disabled) ?>">
                       <button type="button" id="zoneTestBtn" class="btn btn-normal"<?php echo $test_disabled ? ' disabled' : '' ?>><?php echo translate('ZoneTestRun') ?></button>
