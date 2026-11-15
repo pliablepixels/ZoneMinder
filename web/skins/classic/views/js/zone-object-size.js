@@ -511,8 +511,7 @@
     const wPx = Math.round(w / maxX * monitorData[0].width);
     const hPx = Math.round(h / maxY * monitorData[0].height);
     placeLabel('objectSizeLabel', (saved ? zoneObjectSizeStrings.labelEstimate :
-        zoneObjectSizeStrings.labelObject) + ' ' + wPx + '×' + hPx + ' = ' +
-        (wPx * hPx).toLocaleString() + ' px', x, y);
+        zoneObjectSizeStrings.labelObject) + ' ' + wPx + '×' + hPx, x, y);
   }
 
   // Threshold rects drawn inside the object box, and the field each is sized by.
