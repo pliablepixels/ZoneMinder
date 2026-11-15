@@ -341,15 +341,8 @@
 .zones .testPass { stroke: #00c000 !important; stroke-width: 3px !important; }
 .zones .testFail { stroke: #ff0000 !important; stroke-width: 3px !important; }
 
-#zoneTest { margin-top: 0.5em; }
-#zoneTest caption { cursor: help; }
-#zoneTestResult div.swatch { border-left: 4px solid transparent; padding-left: 4px; }
-#zoneTestResult .testPass { color: #008000; }
-#zoneTestResult .testFail { color: #c00000; }
-#zoneTestResult .testStale { font-style: italic; }
-#zoneTestResult .swatch.swatchAlarm { border-left-color: #ffa500; }
-#zoneTestResult .swatch.swatchFilter { border-left-color: #00c8ff; }
-#zoneTestResult .swatch.swatchBlob { border-left-color: #ff00ff; }
+#zoneTestPanel { margin-top: 0.5em; }
+#zoneTestPanel summary { cursor: pointer; font-weight: bold; }
 
 #rectangleSettings th.swatch { border-left: 4px solid transparent; }
 #rectangleSettings th.swatch.swatchAlarm { border-left-color: #ffa500; }

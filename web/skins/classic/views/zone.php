@@ -356,8 +356,9 @@ if ( count($other_zones) ) {
 								</tr>
 							</tbody>
 						</table>
+            <details id="zoneTestPanel" open>
+              <summary title="<?php echo translate('ZoneTestHelp') ?>"><?php echo translate('ZoneTest') ?> <i class="material-icons md-18">help_outline</i></summary>
             <table id="zoneTest">
-              <caption title="<?php echo translate('ZoneTestHelp') ?>"><?php echo translate('ZoneTest') ?> <i class="material-icons md-18">help_outline</i></caption>
               <tbody>
                 <tr>
                   <td>
@@ -412,6 +413,7 @@ if ( count($other_zones) ) {
                 </tr>
               </tbody>
             </table>
+            </details>
 						<table id="rectangleSettings" style="display:none">
 							<caption><?php echo translate('RectangleMeasure') ?></caption>
 							<tbody>
