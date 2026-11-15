@@ -1,4 +1,12 @@
 'use strict';
+// Undefined names are errors here, so a renamed or removed variable fails lint
+// instead of the page. These are the zone view's globals, from zone.js,
+// zone.js.php, skin.js and skin.js.php.
+/* eslint no-undef: "error" */
+/* global $j, applyCheckMethod, constrainValue, getCoordString, imagePrefix,
+   logAjaxFail, maxX, maxY, module, monitorArea, monitorData, monitorPixelArea,
+   monitors, pauseBtn, playBtn, setCookie, thisUrl, updateAllPixelDisplays,
+   zmAuth, zone, zoneObjectSizeStrings */
 //
 // The zone editor's detection tools. The object box derives a zone's
 // thresholds from a rectangle drawn round the smallest object that should
@@ -681,7 +689,7 @@
       const x = Math.min(box.a.x, box.b.x);
       const y = Math.min(box.a.y, box.b.y);
       setRect('objectKernelRect', {x: x, y: y},
-          {x: x + (kx || 1) / W * maxX, y: y + (ky || 1) / H * maxY});
+          {x: x + (kx || 1) / monitorData[0].width * maxX, y: y + (ky || 1) / monitorData[0].height * maxY});
     } else {
       hideRects(['objectKernelRect']);
     }
