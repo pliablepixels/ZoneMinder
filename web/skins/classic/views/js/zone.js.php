@@ -132,6 +132,8 @@ var zoneObjectSizeStrings = {
   'testQualify': '<?php echo addslashes(translate('ZoneTestQualify')) ?>',
   'testNotInARow': '<?php echo addslashes(translate('ZoneTestNotInARow')) ?>',
   'testClosest': '<?php echo addslashes(translate('ZoneTestClosest')) ?>',
+  'testUnsure': '<?php echo addslashes(translate('ZoneTestUnsure')) ?>',
+  'replayOverload': '<?php echo addslashes(translate('ZoneReplayOverload')) ?>',
   'testNoVideo': '<?php echo addslashes(translate('ZoneTestNoVideo')) ?>'
 };
 

@@ -57,7 +57,8 @@ without needing live cameras.
  -a, --save-analysis              - Write analysis JPEGs showing zone alarm overlays
  -n, --dry-run                    - Change no events or scores and create none (zma's own log is still written)
  -j, --json                       - Print zone thresholds and per-frame zone stats as JSON lines
- -z, --zone <zone_id>             - The zone that --set applies to
+ -z, --zone <zone_id>             - Analyse only this zone, as an Active zone, with
+                                    --set applied: a test of one zone's settings
  -s, --set <Column>=<value>       - Replace a saved detection setting of that zone for this
                                     run only, as stored in the Zones table (thresholds in
                                     percent), but CheckMethod as its number (1 AlarmedPixels,
@@ -100,7 +101,7 @@ void Usage() {
   fprintf(stderr, "  -a, --save-analysis          : Write analysis JPEGs showing zone alarm overlays\n");
   fprintf(stderr, "  -n, --dry-run                : Change no events or scores and create none\n");
   fprintf(stderr, "  -j, --json                   : Print zone thresholds and per-frame zone stats as JSON lines\n");
-  fprintf(stderr, "  -z, --zone <zone_id>         : The zone that --set applies to\n");
+  fprintf(stderr, "  -z, --zone <zone_id>         : Analyse only this zone, as an Active zone, with --set\n");
   fprintf(stderr, "  -s, --set <Column>=<value>   : Replace a detection setting of that zone for this run;\n"
                   "                                 not Id/Name/Type/Units (repeatable, needs --zone)\n");
   fprintf(stderr, "  -v, --verbose                : Increase debug verbosity\n");
@@ -126,8 +127,11 @@ static std::string JsonString(const std::string &in) {
 }
 
 // Rebuild zone_id from its saved row with the given columns replaced, using the
-// same parsing as Zone::Load so percentages, coordinates and types are read
-// exactly as zmc would read them after a save. An empty value is NULL.
+// same parsing as Zone::Load so percentages and coordinates are read exactly as
+// zmc would read them after a save. An empty value is NULL. The zone is then
+// analysed alone, as an Active zone: with the others gone, no Inclusive,
+// Exclusive or Preclusive rule decides whether it is checked at all, so every
+// frame measures it - what a test of one zone's settings needs.
 static bool OverrideZone(const std::shared_ptr<Monitor> &monitor, unsigned int zone_id,
                          const std::map<std::string, std::string> &overrides) {
   zmDbRow dbrow;
@@ -156,22 +160,19 @@ static bool OverrideZone(const std::shared_ptr<Monitor> &monitor, unsigned int z
     }
     row[col - cols.begin()] = kv.second.empty() ? nullptr : kv.second.c_str();
   }
+  const std::string active = std::to_string(Zone::ACTIVE);
+  row[std::find(cols.begin(), cols.end(), "Type+0") - cols.begin()] = active.c_str();
 
   std::vector<Zone> rebuilt;
   if (!Zone::LoadRow(monitor, row.data(), rebuilt)) return false;
 
-  // A Zone cannot be assigned (its monitor is const), so build a new list.
-  std::vector<Zone> zones;
-  zones.reserve(monitor->Zones().size());
-  bool found = false;
-  for (const Zone &zone : monitor->Zones()) {
-    found |= zone.Id() == zone_id;
-    zones.push_back(zone.Id() == zone_id ? rebuilt[0] : zone);
-  }
-  if (!found) {
+  if (std::none_of(monitor->Zones().begin(), monitor->Zones().end(),
+                   [zone_id](const Zone &z) { return z.Id() == zone_id; })) {
     Error("Zone %u is not loaded on monitor %u", zone_id, monitor->Id());
     return false;
   }
+  std::vector<Zone> zones;
+  zones.push_back(rebuilt[0]);
   monitor->SetZones(std::move(zones));
   return true;
 }
@@ -753,10 +754,7 @@ int main(int argc, char *argv[]) {
       continue;
     }
 
-    // Run motion detection. DetectMotion skips some zones on some frames
-    // (inclusive, exclusive, behind a preclusive one), which would otherwise
-    // report the last frame they were checked.
-    monitor->ClearZoneStats();
+    // Run motion detection.
     Event::StringSet zoneSet;
     Image analysis_image;
     unsigned int score = monitor->AnalyseFrame(*frame_image, zoneSet,

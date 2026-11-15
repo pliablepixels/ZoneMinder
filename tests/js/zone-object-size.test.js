@@ -394,7 +394,7 @@ test('percent of the zone becomes pixels the way Zone::LoadRow rounds it', () =>
   const t = ZM.zoneThresholds({CheckMethod: 'Blobs', MinAlarmPixels: '2.5',
     MaxAlarmPixels: '', MinFilterPixels: '1.75', MinBlobPixels: '0.01',
     MinBlobs: '1', MaxBlobs: ''}, 1000003);
-  assert.deepStrictEqual(t, {checkMethod: 3, minBlobs: 1, maxBlobs: 0,
+  assert.deepStrictEqual(t, {checkMethod: 3, overloadFrames: 0, minBlobs: 1, maxBlobs: 0,
     minAlarm: 25000, maxAlarm: 0, minFilter: 17500, maxFilter: 0,
     minBlob: 100, maxBlob: 0});
 });
@@ -457,6 +457,20 @@ test('an alarm needs the count of scored frames in a row', () => {
 test('unknown frames are counted and not scored', () => {
   const t = ZM.tallyVerdicts([{frame: 1, verdict: {failedAt: null, unknown: 'blob', scored: false}}], 1);
   assert.deepStrictEqual([t.unknown, t.scored], [1, 0]);
+});
+
+console.log('applyOverload');
+test('frames after one over a maximum are skipped for OverloadFrames', () => {
+  const over = {failedAt: 'alarm', unknown: null, scored: false, over: true};
+  const ok = {failedAt: null, unknown: null, scored: true};
+  const frames = [{frame: 1, verdict: over}, {frame: 2, verdict: ok}, {frame: 3, verdict: ok},
+    {frame: 4, verdict: ok}];
+  ZM.applyOverload(frames, 2);
+  assert.deepStrictEqual(frames.map((f) => f.verdict.failedAt), ['alarm', 'overload', 'overload', null]);
+});
+test('a maximum exceeded is marked as over', () => {
+  assert.strictEqual(ZM.whatIfVerdict(PASS, RAN, with_({maxAlarm: 100000})).over, true);
+  assert.strictEqual(ZM.whatIfVerdict(QUIET, RAN, RAN).over, false);
 });
 
 console.log('failureSummary');

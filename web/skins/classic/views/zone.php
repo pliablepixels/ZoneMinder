@@ -144,7 +144,10 @@ foreach ($rectangle_ratios as $id => $spec) {
 
 # Testing the form's settings against a recording, through zma --dry-run.
 # Disabled, with the reason as its title, when it cannot work.
-$test_events = ZM\Event::find(array('MonitorId'=>$monitor->Id()), array('order'=>'Id DESC', 'limit'=>25));
+# Only events this user may view: their times, notes and tags are shown.
+$test_events = array_values(array_filter(
+  ZM\Event::find(array('MonitorId'=>$monitor->Id()), array('order'=>'Id DESC', 'limit'=>25)),
+  function($e) { return $e->canView(); }));
 # Tag names per event, in one query. Skipped where the Tags tables are missing
 # (a database not yet upgraded), and the inner join drops links to deleted tags.
 $test_tags = array();

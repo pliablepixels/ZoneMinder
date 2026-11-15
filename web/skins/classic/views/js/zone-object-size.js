@@ -176,6 +176,7 @@
   function zoneThresholds(values, area) {
     const t = {
       checkMethod: CHECK_METHODS.indexOf(values.CheckMethod) + 1,
+      overloadFrames: parseInt(values.OverloadFrames, 10) || 0,
       minBlobs: parseInt(values.MinBlobs, 10) || 0,
       maxBlobs: parseInt(values.MaxBlobs, 10) || 0,
     };
@@ -205,28 +206,49 @@
       const stage = STAGES[i];
       if (!reached || i >= ran.checkMethod) return {failedAt: null, unknown: stage, scored: false};
       let pass;
+      // A count over its maximum puts the zone into overload (applyOverload).
+      let over = false;
       if (stage === 'alarm') {
         pass = within(fz.alarm, now.minAlarm, now.maxAlarm);
+        over = now.maxAlarm > 0 && fz.alarm > now.maxAlarm;
         reached = within(fz.alarm, ran.minAlarm, ran.maxAlarm);
       } else if (stage === 'filter') {
         pass = within(fz.filter, now.minFilter, now.maxFilter);
+        over = now.maxFilter > 0 && fz.filter > now.maxFilter;
         reached = within(fz.filter, ran.minFilter, ran.maxFilter);
       } else if (now.minBlob === ran.minBlob && now.maxBlob === ran.maxBlob) {
         pass = within(fz.blobs, now.minBlobs, now.maxBlobs);
+        over = now.maxBlobs > 0 && fz.blobs > now.maxBlobs;
       } else if (now.minBlobs <= 1 && !now.maxBlob && !now.maxBlobs) {
         pass = within(fz.largestBlob, now.minBlob, 0);
       } else {
         return {failedAt: null, unknown: stage, scored: false};
       }
-      if (!pass) return {failedAt: stage, unknown: null, scored: false};
+      if (!pass) return {failedAt: stage, unknown: null, scored: false, over: over};
     }
     return {failedAt: null, unknown: null, scored: true};
+  }
+
+  // CheckAlarms skips the overloadFrames frames after one that went over a
+  // maximum. zma measured with the maximums off, so this replays that here.
+  // frames: [{frame, verdict}] in frame order; skipped frames get an
+  // 'overload' verdict.
+  function applyOverload(frames, overloadFrames) {
+    let until = -1;
+    frames.forEach(function(f) {
+      if (f.frame <= until) {
+        f.verdict = {failedAt: 'overload', unknown: null, scored: false};
+      } else if (f.verdict.over && overloadFrames > 0) {
+        until = f.frame + overloadFrames;
+      }
+    });
   }
 
   // Per stage: true passed, false failed, undefined not reached, not tested
   // or not known.
   function stageResults(verdict, checkMethod) {
     const out = {};
+    if (verdict.failedAt === 'overload') return out;
     let stop = false;
     STAGES.forEach(function(stage, i) {
       if (checkMethod < i + 1 || stop) return;
@@ -339,6 +361,7 @@
     zoneThresholds: zoneThresholds,
     whatIfVerdict: whatIfVerdict,
     tallyVerdicts: tallyVerdicts,
+    applyOverload: applyOverload,
     failureSummary: failureSummary,
     stageResults: stageResults,
     frameAt: frameAt,
@@ -783,7 +806,13 @@
       if (el) el.value = undoSnapshot[field];
     });
     updateAllPixelDisplays();
+    const box = undoSnapshot.box;
     forgetMeasurement();
+    // Back to the box the measurement started from, saved one included.
+    if (box) {
+      setLastBox(box);
+      refreshOverlay();
+    }
   }
 
   // Runs on every mousemove, so nothing here may block - no alert or confirm.
@@ -798,6 +827,7 @@
     // first, so undo and the highlighting stay anchored there.
     if (!undoSnapshot) {
       undoSnapshot = formValues();
+      undoSnapshot.box = lastBox;
       const undoBtn = document.getElementById('objectSizeUndoBtn');
       if (undoBtn) undoBtn.style.display = '';
     }
@@ -874,12 +904,16 @@
     // The answer first, then why: would it alarm, how many frames qualify,
     // and if not, what blocked most frames and how close the best one came.
     out.textContent = '';
-    out.appendChild(checkMark(t.wouldAlarm));
+    // Frames not known could hold the run that alarms: unless one is proven,
+    // that is a "can't tell", not a no.
+    const unsure = !t.wouldAlarm && t.unknown > 0;
+    out.appendChild(checkMark(unsure ? undefined : t.wouldAlarm));
     const verdict = document.createElement('b');
-    verdict.textContent = ' ' + (t.wouldAlarm ? str.testWouldAlarm : str.testWouldNotAlarm);
+    verdict.textContent = ' ' + (t.wouldAlarm ? str.testWouldAlarm :
+        unsure ? str.testUnsure : str.testWouldNotAlarm);
     out.appendChild(verdict);
     const parts = [str.testQualify.replace('%1', t.scored).replace('%2', test.done.frames)];
-    if (!t.wouldAlarm) {
+    if (!t.wouldAlarm && !unsure) {
       const why = failureSummary(test.frames, test.now);
       if (t.scored) {
         parts.push(str.testNotInARow.replace('%1', test.done.alarmFrameCount));
@@ -895,7 +929,8 @@
 
   function stageName(stage) {
     const str = zoneObjectSizeStrings;
-    return {alarm: str.replayAlarmed, filter: str.replayFiltered, blob: str.replayBlob}[stage];
+    return {alarm: str.replayAlarmed, filter: str.replayFiltered, blob: str.replayBlob,
+      overload: str.replayOverload}[stage];
   }
 
   // Values the test was run with, or that the form holds now.
@@ -922,6 +957,12 @@
   // or drop the result if zma has to measure again.
   function rejudgeTest() {
     if (!test) return;
+    if (!zoneIsMeasurable()) {
+      staleTest();
+      const out = document.getElementById('zoneTestResult');
+      if (out) out.textContent = zoneObjectSizeStrings.testNotDetecting;
+      return;
+    }
     const values = formValues();
     if (measuredKey(values) !== test.measured) {
       staleTest();
@@ -931,6 +972,7 @@
     test.frames.forEach(function(f) {
       f.verdict = whatIfVerdict(f.fz, test.ran, test.now);
     });
+    applyOverload(test.frames, test.now.overloadFrames);
     test.tally = tallyVerdicts(test.frames, test.done.alarmFrameCount);
     const inAlarm = new Set(test.tally.alarmFrames);
     test.frames.forEach(function(f) {
@@ -955,6 +997,10 @@
     const select = document.getElementById('zoneTestEvent');
     const typed = document.getElementById('zoneTestEventId');
     const out = document.getElementById('zoneTestResult');
+    if (!zoneIsMeasurable()) {
+      out.textContent = zoneObjectSizeStrings.testNotDetecting;
+      return;
+    }
     const form = document.zoneForm;
     // A typed event id wins over the list; the server checks it is this
     // monitor's.
@@ -1006,7 +1052,6 @@
           }
           test = buildTest(resp, data.zid, sent);
           if (!test) {
-            // zma leaves out Inactive and Privacy zones: they detect nothing.
             out.textContent = zoneObjectSizeStrings.testNotDetecting;
             return;
           }
@@ -1126,7 +1171,7 @@
     m.zmBound = true;
     m.addEventListener('loadedmetadata', function() {
       if (replay && m.duration && replay.totalFrames) {
-        replay.tol = m.duration / replay.totalFrames;
+        replay.tol = m.duration / replay.totalFrames / 2;
       }
       drawTimeline();
     });
@@ -1326,7 +1371,7 @@
     replay = {
       frames: frames, totalFrames: total, lastT: lastT,
       // Half a frame either side; refined once the video's length is known.
-      tol: lastT && total ? lastT / total : 0.05,
+      tol: lastT && total ? lastT / total / 2 : 0.025,
     };
     if (stillShown) hideStill();
     liveStream(false);
@@ -1458,6 +1503,8 @@
     window.addEventListener('resize', drawTimeline);
   }
 
+  const NOT_SETTINGS = ['zoneTestEvent', 'zoneTestEventId', 'objectWidthPx', 'objectHeightPx'];
+
   function init() {
     const testBtn = document.getElementById('zoneTestBtn');
     if (testBtn) testBtn.addEventListener('click', runTest);
@@ -1477,7 +1524,9 @@
       ['input', 'change'].forEach(function(type) {
         document.zoneForm.addEventListener(type, function(evt) {
           // Picking another event is not a settings change.
-          if (evt.target.id !== 'zoneTestEvent' && evt.target.id !== 'zoneTestEventId') rejudgeTest();
+          // Picking an event, or typing a size not yet applied (applyTypedSize
+          // rejudges once it is), is not a settings change.
+          if (!NOT_SETTINGS.includes(evt.target.id)) rejudgeTest();
         });
       });
     }
@@ -1616,11 +1665,24 @@
     if (typeof areaUpdater === 'function') {
       global.updateArea = function() {
         const result = areaUpdater.apply(this, arguments);
-        if (lastBox) {
+        // Only a box measured in this session re-derives the settings; a
+        // restored one is shown, so a vertex move cannot rewrite thresholds,
+        // maxima or CheckMethod tuned by hand and saved with it.
+        if (lastBox && undoSnapshot) {
           apply(lastBox.a, lastBox.b);
         } else {
-          showSavedObject();
+          refreshOverlay();
         }
+        rejudgeTest();
+        return result;
+      };
+    }
+    // Adding or deleting a point redraws the points without updateArea.
+    const pointsDrawer = global.drawZonePoints;
+    if (typeof pointsDrawer === 'function') {
+      global.drawZonePoints = function() {
+        const result = pointsDrawer.apply(this, arguments);
+        rejudgeTest();
         return result;
       };
     }
@@ -1647,6 +1709,7 @@
         setTimeout(refreshOverlay, 0);
         return;
       }
+      rejudgeTest();
       if (armed) setArmed(false);
       forgetMeasurement();
     });

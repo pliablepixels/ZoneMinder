@@ -221,12 +221,6 @@ class Zone {
     stats.Reset();
     diag.Reset();
   }
-  // Stats only, keeping was_alarmed for preclusive zones. For zma, which
-  // reports every zone each frame: CheckAlarms only resets the zones it runs.
-  void ClearStats() {
-    stats.Reset();
-    diag.Reset();
-  }
   const ZoneDiagnostics &Diagnostics() const { return diag; }
   void RecordStats( const Event *event );
   ZoneStats const &GetStats() const {
