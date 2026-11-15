@@ -668,8 +668,11 @@
     drawThresholds(box);
   }
 
+  // The box itself too, not just its thresholds: whatever was drawn before
+  // (the estimate, say, while lastBox was briefly cleared) must not linger.
   function refreshOverlay() {
     if (lastBox) {
+      drawRect(lastBox.a, lastBox.b);
       drawThresholds(lastBox);
     } else {
       showSavedObject();
