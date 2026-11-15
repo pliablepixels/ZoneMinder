@@ -231,8 +231,10 @@ if ( count($other_zones) ) {
                 <rect id="objectBlobRect" x="0" y="0" width="0" height="0" style="display:none"><title><?php echo translate('RectangleBlobArea') ?></title></rect>
                 <rect id="objectKernelRect" x="0" y="0" width="0" height="0" style="display:none"><title><?php echo translate('ZoneFilterSize') ?></title></rect>
                 <rect id="replayAlarmRect" x="0" y="0" width="0" height="0" style="display:none"/>
-                <rect id="replayFilterRect" x="0" y="0" width="0" height="0" style="display:none"/>
+                <!-- Filtered over blob: when the blob is all of the filtered pixels the
+                     two outlines coincide, and the dotted one lets both show. -->
                 <rect id="replayBlobRect" x="0" y="0" width="0" height="0" style="display:none"/>
+                <rect id="replayFilterRect" x="0" y="0" width="0" height="0" style="display:none"/>
                 Sorry, your browser does not support inline SVG
               </svg>
               <button type="button" id="objectImageReplaceBtn" class="btn btn-normal" style="display:none" title="<?php echo translate('ObjectImageLoad') ?>">

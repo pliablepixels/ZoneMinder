@@ -211,6 +211,28 @@
     return {failedAt: null, unknown: null, scored: true};
   }
 
+  // Each check on its own, as if the ones before it had passed: zma measured
+  // every stage, so a frame failing at filtered can still show whether its
+  // blob was big enough - every threshold to change, not just the first.
+  // true / false, or undefined when not measured or not tested.
+  function checkEach(fz, ran, now) {
+    const off = {
+      alarm: {minAlarm: 0, maxAlarm: 0},
+      filter: {minFilter: 0, maxFilter: 0},
+    };
+    const out = {};
+    STAGES.forEach(function(stage, i) {
+      if (now.checkMethod < i + 1) return;
+      const t = Object.assign({}, now, {checkMethod: i + 1});
+      STAGES.slice(0, i).forEach(function(before) {
+        Object.assign(t, off[before]);
+      });
+      const v = whatIfVerdict(fz, ran, t);
+      out[stage] = v.scored ? true : v.failedAt === stage ? false : undefined;
+    });
+    return out;
+  }
+
   // Per stage: true passed, false failed, undefined not reached, not tested
   // or not known.
   function stageResults(verdict, checkMethod) {
@@ -327,6 +349,7 @@
     zoneThresholds: zoneThresholds,
     whatIfVerdict: whatIfVerdict,
     tallyVerdicts: tallyVerdicts,
+    checkEach: checkEach,
     failureSummary: failureSummary,
     stageResults: stageResults,
     frameAt: frameAt,
@@ -1232,7 +1255,7 @@
     const info = document.getElementById('replayFrameInfo');
     if (f) {
       const str = zoneObjectSizeStrings;
-      const replayStages = stageResults(f.verdict, test.now.checkMethod);
+      const replayStages = checkEach(f.fz, test.ran, test.now);
       const z = test.now;
       drawReplayBox('replayAlarmRect', f.fz.alarmBox);
       drawReplayBox('replayFilterRect', z.checkMethod >= 2 ? f.fz.filterBox : null);
