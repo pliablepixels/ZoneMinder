@@ -621,12 +621,22 @@
     const boxPx = Math.abs(box.b.x - box.a.x) / maxX * W *
         Math.abs(box.b.y - box.a.y) / maxY * H;
     const zonePx = zonePixels();
-    THRESHOLD_RECTS.forEach(function(t) {
+    // Each must fit inside the one before - validateForm refuses the save
+    // otherwise - so say so now, with its message, rather than at Save.
+    const rules = [null, global.minFilterLtMinAlarmString, global.minBlobLtMinFilterString];
+    let outer = Infinity;
+    THRESHOLD_RECTS.forEach(function(t, i) {
       const el = form.elements['newZone[' + t.field + ']'];
       const pct = el && !el.disabled ? parseFloat(el.value) : NaN;
+      const tooBig = pct > outer;
+      if (el) {
+        el.classList.toggle('outOfOrder', tooBig);
+        el.title = tooBig ? rules[i] : '';
+      }
+      if (pct > 0) outer = pct;
       const inner = (boxPx > 0) ? innerBox(box, pct / 100 * zonePx / boxPx) : null;
       if (inner) {
-        setRect(t.id, inner.a, inner.b);
+        setRect(t.id, inner.a, inner.b).classList.toggle('outOfOrder', tooBig);
       } else {
         hideRects([t.id]);
       }

@@ -260,6 +260,9 @@
 .zones #objectFilterRect { fill: rgba(0, 200, 255, 0.15); stroke: #00c8ff; }
 .zones #objectBlobRect { fill: rgba(255, 0, 255, 0.2); stroke: #ff00ff; }
 .zones #objectKernelRect { fill: #ffffff; stroke: #000000; }
+/* Bigger than the threshold it must fit inside: zone.js refuses to save it. */
+.zones .outOfOrder { stroke: #ff0000 !important; stroke-width: 2px !important; stroke-dasharray: 3 2; }
+#zoneSettings input.outOfOrder { border-color: #ff0000; background: #ffe0e0; }
 
 /* Event video replayed in place of the live view, in exactly the box the
    stream occupies so zma's capture-pixel boxes land where they belong. */
