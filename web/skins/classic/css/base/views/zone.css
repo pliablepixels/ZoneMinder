@@ -8,9 +8,9 @@
   --zmFilterFill: rgba(0, 200, 255, 0.15);
   --zmBlob: #ff00ff;
   --zmBlobFill: rgba(255, 0, 255, 0.2);
-  --zmPass: #00c000;
+  --zmPass: #9be09b;
   --zmFail: #e04040;
-  --zmInAlarm: #005000;
+  --zmInAlarm: #007a00;
   --zmUnknown: #505050;
   display: flex;
   flex-wrap: nowrap;
@@ -317,7 +317,7 @@
 }
 /* Timeline: one colour per frame. */
 .legend .legendScored::before { background: var(--zmPass); }
-.legend .legendInAlarm::before { background: linear-gradient(var(--zmInAlarm) 33%, var(--zmPass) 33%); }
+.legend .legendInAlarm::before { background: var(--zmInAlarm); }
 .legend .legendFail::before { background: var(--zmFail); }
 .legend .legendNone::before { background: rgba(128,128,128,0.25); }
 .legend .legendRerun::before { background: var(--zmUnknown); }

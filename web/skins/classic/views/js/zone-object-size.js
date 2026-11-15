@@ -1037,8 +1037,8 @@
   // the frame on screen drawn over it and a timeline of every frame.
   //
   let replay = null;
-  // Pass, fail, not known, and a strip for frames in an alarm - which check
-  // failed is in the panel on the image. The colours are zone.css's, so the timeline and its legend cannot drift.
+  // Alarm, qualifies, fails, not known - which check failed is in the panel on
+  // the image. The colours are zone.css's, so the timeline and its legend cannot drift.
   function timelineColours() {
     const css = getComputedStyle(document.getElementById('zoneForm'));
     const v = function(name) {
@@ -1141,8 +1141,10 @@
     m.addEventListener('pause', setPlayIcon);
   }
 
+  // One colour per frame, each meaning one thing: in an alarm, qualifying but
+  // too few in a row to alarm, failing, or not known.
   function frameColour(f, colours) {
-    if (f.verdict.scored) return colours.pass;
+    if (f.verdict.scored) return f.inAlarm ? colours.alarm : colours.pass;
     return f.verdict.unknown ? colours.unknown : colours.fail;
   }
 
@@ -1165,14 +1167,10 @@
     const colours = timelineColours();
     replay.frames.forEach(function(f) {
       const v = f.verdict;
-      seen[v.scored ? 'legendScored' : v.unknown ? 'legendRerun' : 'legendFail'] = true;
-      if (f.inAlarm) seen.legendInAlarm = true;
+      seen[v.scored ? (f.inAlarm ? 'legendInAlarm' : 'legendScored') :
+          v.unknown ? 'legendRerun' : 'legendFail'] = true;
       ctx.fillStyle = frameColour(f, colours);
       ctx.fillRect(f.t / duration * w, 0, barW, h);
-      if (f.inAlarm) {
-        ctx.fillStyle = colours.alarm;
-        ctx.fillRect(f.t / duration * w, 0, barW, h / 3);
-      }
     });
     ctx.fillStyle = '#000000';
     ctx.fillRect(media.currentTime / duration * w - dpr, 0, 2 * dpr, h);
