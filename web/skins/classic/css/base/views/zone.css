@@ -1,7 +1,9 @@
 #zoneForm {
   display: flex;
   flex-wrap: nowrap;
-  gap: 4px;
+  gap: 12px;
+  /* Off the window edges, like the buttons in the header above. */
+  padding: 0 12px 12px;
   /* Fill the remaining height of #content so the image column can be sized to
    * what is left over after the buttons below it. */
   flex: 1 1 auto;
