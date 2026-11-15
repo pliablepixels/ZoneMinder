@@ -1046,8 +1046,14 @@
   //
   let replay = null;
   // Pass and fail only - which check failed is in the panel on the image.
-  // Matches .legend in zone.css.
-  const TIMELINE_COLOURS = {pass: '#00c000', fail: '#e04040', unknown: '#505050', alarm: '#005000'};
+  // The colours are zone.css's, so the timeline and its legend cannot drift.
+  function timelineColours() {
+    const css = getComputedStyle(document.getElementById('zoneForm'));
+    const v = function(name) {
+      return css.getPropertyValue(name).trim();
+    };
+    return {pass: v('--zmPass'), fail: v('--zmFail'), unknown: v('--zmUnknown'), alarm: v('--zmInAlarm')};
+  }
 
   // What the replay plays on: the event's mp4 in a <video>, or jpegPlayer over
   // its stored frames. Both offer the video calls the replay uses.
@@ -1156,9 +1162,9 @@
     m.addEventListener('pause', setPlayIcon);
   }
 
-  function frameColour(f) {
-    if (f.verdict.scored) return TIMELINE_COLOURS.pass;
-    return f.verdict.unknown ? TIMELINE_COLOURS.unknown : TIMELINE_COLOURS.fail;
+  function frameColour(f, colours) {
+    if (f.verdict.scored) return colours.pass;
+    return f.verdict.unknown ? colours.unknown : colours.fail;
   }
 
   function drawTimeline() {
@@ -1178,14 +1184,15 @@
     const barW = Math.max(1, w / Math.max(replay.totalFrames, 1));
     // The legend lists only colours on the strip. Grey is the background.
     const seen = {legendNone: true};
+    const colours = timelineColours();
     replay.frames.forEach(function(f) {
       const v = f.verdict;
       seen[v.scored ? 'legendScored' : v.unknown ? 'legendRerun' : 'legendFail'] = true;
       if (f.inAlarm) seen.legendInAlarm = true;
-      ctx.fillStyle = frameColour(f);
+      ctx.fillStyle = frameColour(f, colours);
       ctx.fillRect(f.t / duration * w, 0, barW, h);
       if (f.inAlarm) {
-        ctx.fillStyle = TIMELINE_COLOURS.alarm;
+        ctx.fillStyle = colours.alarm;
         ctx.fillRect(f.t / duration * w, 0, barW, h / 3);
       }
     });

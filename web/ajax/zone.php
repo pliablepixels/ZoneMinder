@@ -1,6 +1,7 @@
 <?php
 require_once('includes/Monitor.php');
 require_once('includes/Event.php');
+require_once('includes/Zone.php');
 
 if ( empty($_REQUEST['mid']) ) {
   ajaxError('No monitor id supplied');
@@ -22,7 +23,7 @@ if ( isset($_REQUEST['command']) and $_REQUEST['command'] == 'test' ) {
   // zma --dry-run so nothing is written. The zone must exist: zma rebuilds it
   // from its saved row with the form's values laid over it.
   $zid = validCardinal($_REQUEST['zid']);
-  if ( !$zid or !dbFetchOne('SELECT Id FROM Zones WHERE Id=? AND MonitorId=?', 'Id', array($zid, $monitor->Id())) ) {
+  if ( !$zid or !ZM\Zone::find_one(array('Id'=>$zid, 'MonitorId'=>$monitor->Id())) ) {
     ajaxError('Save the zone before testing it');
   }
   $event = new ZM\Event(validCardinal(isset($_REQUEST['eid']) ? $_REQUEST['eid'] : 0));
