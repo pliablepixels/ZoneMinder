@@ -304,6 +304,7 @@
 }
 /* Timeline: one colour per frame. */
 .legend .legendScored::before { background: #00c000; }
+.legend .legendInAlarm::before { background: linear-gradient(#005000 33%, #00c000 33%); }
 .legend .swatchAlarm::before { background: #ffa500; }
 .legend .swatchFilter::before { background: #00c8ff; }
 .legend .swatchBlob::before { background: #ff00ff; }

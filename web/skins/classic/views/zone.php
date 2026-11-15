@@ -301,6 +301,7 @@ if ( count($other_zones) ) {
                   <td>
                     <canvas id="replayTimeline" height="24" title="<?php echo translate('ZoneReplayTimeline') ?>"></canvas>
                     <div id="replayLegend" class="legend">
+                      <span class="legendInAlarm"><?php echo translate('ZoneReplayInAlarmKey') ?></span>
                       <span class="legendScored"><?php echo translate('ZoneReplayScored') ?></span>
                       <span class="swatchAlarm"><?php echo translate('ZoneReplayFailAlarm') ?></span>
                       <span class="swatchFilter"><?php echo translate('ZoneReplayFailFilter') ?></span>

@@ -451,6 +451,8 @@ test('an alarm needs the count of scored frames in a row', () => {
   assert.strictEqual(t.wouldAlarm, false); // frame 3 had no change
   frames.splice(2, 0, {frame: 3, verdict: v(true)});
   assert.strictEqual(ZM.tallyVerdicts(frames, 3).wouldAlarm, true);
+  frames.push({frame: 5, verdict: v(true)}, {frame: 6, verdict: v(false)});
+  assert.deepStrictEqual(ZM.tallyVerdicts(frames, 3).alarmFrames, [1, 2, 3, 4, 5]);
 });
 test('unknown frames are counted and not scored', () => {
   const t = ZM.tallyVerdicts([{frame: 1, verdict: {failedAt: null, unknown: 'blob', scored: false}}], 1);

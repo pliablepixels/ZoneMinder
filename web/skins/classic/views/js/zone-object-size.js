@@ -233,18 +233,26 @@
   // frames: [{frame, verdict}] in frame order, only those zma reported (the
   // rest had no change, so did not score). An alarm needs alarmFrameCount
   // scored frames in a row: zma.cpp's PREALARM count resets on any miss.
+  // alarmFrames: the frame numbers of every run long enough to alarm.
   function tallyVerdicts(frames, alarmFrameCount) {
-    const out = {scored: 0, unknown: 0, wouldAlarm: false,
+    const out = {scored: 0, unknown: 0, wouldAlarm: false, alarmFrames: [],
       passed: {alarm: 0, filter: 0, blob: 0}};
-    let run = 0;
+    const need = Math.max(alarmFrameCount, 1);
+    let run = [];
     let prev = null;
     frames.forEach(function(f) {
       const v = f.verdict;
       if (v.unknown) out.unknown++;
-      run = v.scored ? ((prev !== null && f.frame === prev + 1) ? run + 1 : 1) : 0;
+      if (!v.scored || prev === null || f.frame !== prev + 1) run = [];
+      if (v.scored) run.push(f.frame);
       prev = f.frame;
       if (v.scored) out.scored++;
-      if (run >= Math.max(alarmFrameCount, 1)) out.wouldAlarm = true;
+      if (run.length === need) {
+        out.alarmFrames = out.alarmFrames.concat(run);
+        out.wouldAlarm = true;
+      } else if (run.length > need) {
+        out.alarmFrames.push(f.frame);
+      }
       const st = stageResults(v, 3);
       STAGES.forEach(function(stage) {
         if (st[stage]) out.passed[stage]++;
@@ -868,6 +876,10 @@
       f.verdict = whatIfVerdict(f.fz, test.ran, test.now);
     });
     test.tally = tallyVerdicts(test.frames, test.done.alarmFrameCount);
+    const inAlarm = new Set(test.tally.alarmFrames);
+    test.frames.forEach(function(f) {
+      f.inAlarm = inAlarm.has(f.frame);
+    });
     showTestResult();
     if (replay) showReplayFrame(); else refreshOverlay();
   }
@@ -992,6 +1004,10 @@
     replay.frames.forEach(function(f) {
       ctx.fillStyle = frameColour(f);
       ctx.fillRect(f.t / duration * w, 0, barW, h);
+      if (f.inAlarm) {
+        ctx.fillStyle = '#005000';
+        ctx.fillRect(f.t / duration * w, 0, barW, h / 3);
+      }
     });
     ctx.fillStyle = '#000000';
     ctx.fillRect(video.currentTime / duration * w - dpr, 0, 2 * dpr, h);
@@ -1022,24 +1038,39 @@
     const f = frameAt(replay.frames, video.currentTime, replay.tol);
     const info = document.getElementById('replayFrameInfo');
     if (f) {
-      const cls = f.verdict.scored ? 'pass' : 'fail';
-      drawReplayBox('replayMotionRect', f.fz.motionBox, cls,
-          [true, zoneObjectSizeStrings.labelMotion]);
-      drawReplayBox('replayBlobRect', f.fz.blobBox, cls,
-          [false, zoneObjectSizeStrings.labelBlob + ' ' + fmt(f.fz.largestBlob) + ' px']);
+      const str = zoneObjectSizeStrings;
       const replayStages = stageResults(f.verdict, test.now.checkMethod);
+      // Green or red per box: the motion box carries the alarmed and filtered
+      // counts, the blob box the blob size. Neither means an alarm by itself.
+      const met = function(stage) {
+        const v = replayStages[stage];
+        return v === true ? str.met : v === false ? str.notMet : '?';
+      };
+      const tone = function(stages) {
+        const vs = stages.map(function(s) {
+          return replayStages[s];
+        });
+        if (vs.indexOf(false) >= 0) return 'fail';
+        return vs.indexOf(true) >= 0 && vs.indexOf(undefined) < 0 ? 'pass' : '';
+      };
+      const motionStages = test.now.checkMethod >= 2 ? ['alarm', 'filter'] : ['alarm'];
+      let motionText = str.labelMotion + ' · ' + str.replayAlarmed + ': ' + met('alarm');
+      if (test.now.checkMethod >= 2) motionText += ' · ' + str.replayFiltered + ': ' + met('filter');
+      drawReplayBox('replayMotionRect', f.fz.motionBox, tone(motionStages), [true, motionText]);
+      drawReplayBox('replayBlobRect', f.fz.blobBox, test.now.checkMethod >= 3 ? tone(['blob']) : '',
+          [false, str.labelBlob + ' ' + fmt(f.fz.largestBlob) + ' px' +
+            (test.now.checkMethod >= 3 ? ': ' + met('blob') : '')]);
       if (info) {
-        const str = zoneObjectSizeStrings;
         const parts = [str.replayFrame + ' ' + f.frame];
         const z = test.now;
         [['alarm', str.replayAlarmed, f.fz.alarm, z.minAlarm, 1],
           ['filter', str.replayFiltered, f.fz.filter, z.minFilter, 2],
           ['blob', str.labelBlob, f.fz.largestBlob, z.minBlob, 3]].forEach(function(r) {
           if (z.checkMethod < r[4] || replayStages[r[0]] === undefined) return;
-          parts.push(r[1] + ' ' + fmt(r[2]) + '/' + fmt(r[3]) + (replayStages[r[0]] ? ' ✓' : ' ✗'));
+          parts.push(r[1] + ' ' + fmt(r[2]) + '/' + fmt(r[3]) + ': ' + met(r[0]));
         });
         if (f.verdict.unknown) parts.push(zoneObjectSizeStrings.testUnknownFrame);
-        parts.push(f.verdict.scored ? str.replayAlarmFrame : str.replayNoAlarm);
+        parts.push(f.inAlarm ? str.replayInAlarm : f.verdict.scored ? str.replayAlarmFrame : str.replayNoAlarm);
         info.textContent = parts.join(' · ');
       }
     } else {
