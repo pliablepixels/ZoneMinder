@@ -25,6 +25,7 @@
 #include "zm_config.h"
 #include "zm_poly.h"
 #include "zm_rgb.h"
+#include "zm_utils.h"
 #include "zm_zone_stats.h"
 #include "zm_vector2.h"
 
@@ -40,6 +41,18 @@ class Monitor;
 // This describes a 'zone', or an area of an image that has certain
 // detection characteristics.
 //
+
+// What CheckAlarms saw in the last frame, whether or not it scored, for zma's
+// --json report. Kept on the Zone rather than in ZoneStats, which is copied
+// into every packet and event frame.
+struct ZoneDiagnostics {
+  Box alarmed_box;        // the alarmed pixels
+  Box filtered_box;       // those left after the filter
+  int largest_blob = 0;   // before Min/MaxBlobPixels removed any
+  Box largest_blob_box;
+
+  void Reset() { *this = ZoneDiagnostics(); }
+};
 
 class Zone {
  protected:
@@ -94,6 +107,7 @@ class Zone {
   bool        alarmed;
   bool        was_alarmed;
   ZoneStats   stats;
+  ZoneDiagnostics diag;
   Image      *pg_image;
   Range      *ranges;
   Image      *image;
@@ -205,10 +219,15 @@ class Zone {
     alarmed = false;
     was_alarmed = false;
     stats.Reset();
+    diag.Reset();
   }
   // Stats only, keeping was_alarmed for preclusive zones. For zma, which
   // reports every zone each frame: CheckAlarms only resets the zones it runs.
-  void ClearStats() { stats.Reset(); }
+  void ClearStats() {
+    stats.Reset();
+    diag.Reset();
+  }
+  const ZoneDiagnostics &Diagnostics() const { return diag; }
   void RecordStats( const Event *event );
   ZoneStats const &GetStats() const {
     stats.DumpToLog("GetStats");
@@ -227,10 +246,10 @@ class Zone {
   static std::vector<Zone> Load(const std::shared_ptr<Monitor> &monitor);
   // The columns Load selects, in the order LoadRow reads them. zma uses these
   // to rebuild a zone from its saved row with some values replaced.
-  static const char *const kLoadColumns[];
-  static const size_t kLoadColumnCount;
-  static std::string LoadColumnsSql();
-  static bool LoadRow(const std::shared_ptr<Monitor> &monitor, char **dbrow, std::vector<Zone> &zones);
+  static const StringVector kLoadColumns;
+  static std::string LoadColumnsSql() { return Join(kLoadColumns); }
+  static bool LoadRow(const std::shared_ptr<Monitor> &monitor, const char *const *dbrow,
+                      std::vector<Zone> &zones);
   //=================================================
   bool CheckOverloadCount();
   int GetOverloadCount();

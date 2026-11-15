@@ -58,9 +58,11 @@ without needing live cameras.
  -n, --dry-run                    - Change no events or scores and create none (zma's own log is still written)
  -j, --json                       - Print zone thresholds and per-frame zone stats as JSON lines
  -z, --zone <zone_id>             - The zone that --set applies to
- -s, --set <Column>=<value>       - Replace a saved value of that zone for this run only,
-                                    as stored in the Zones table (thresholds in percent).
-                                    Repeatable. Lets unsaved zone settings be tested.
+ -s, --set <Column>=<value>       - Replace a saved detection setting of that zone for this
+                                    run only, as stored in the Zones table (thresholds in
+                                    percent), but CheckMethod as its number (1 AlarmedPixels,
+                                    2 FilteredPixels, 3 Blobs). Values are not checked.
+                                    Id, Name, Type and Units cannot be set. Repeatable.
  -v, --verbose                    - Increase verbosity
  -h, --help                       - Display usage information
  -V, --version                    - Print the installed version of ZoneMinder
@@ -124,69 +126,99 @@ static std::string JsonString(const std::string &in) {
 
 // Rebuild zone_id from its saved row with the given columns replaced, using the
 // same parsing as Zone::Load so percentages, coordinates and types are read
-// exactly as zmc would read them after a save.
+// exactly as zmc would read them after a save. An empty value is NULL.
 static bool OverrideZone(const std::shared_ptr<Monitor> &monitor, unsigned int zone_id,
                          const std::map<std::string, std::string> &overrides) {
-  std::string sql = stringtf("SELECT %s FROM Zones WHERE MonitorId = %u AND Id = %u",
-                             Zone::LoadColumnsSql().c_str(), monitor->Id(), zone_id);
-  MYSQL_RES *result = zmDbFetch(sql);
-  if (!result) return false;
-  MYSQL_ROW dbrow = mysql_fetch_row(result);
-  if (!dbrow) {
-    mysql_free_result(result);
+  zmDbRow dbrow;
+  if (!dbrow.fetch(stringtf("SELECT %s FROM Zones WHERE MonitorId = %u AND Id = %u",
+                            Zone::LoadColumnsSql().c_str(), monitor->Id(), zone_id))) {
     Error("Zone %u not found on monitor %u", zone_id, monitor->Id());
     return false;
   }
-
-  std::vector<std::string> values(Zone::kLoadColumnCount);
-  std::vector<bool> is_null(Zone::kLoadColumnCount);
-  for (size_t i = 0; i < Zone::kLoadColumnCount; i++) {
-    is_null[i] = (dbrow[i] == nullptr);
-    if (dbrow[i]) values[i] = dbrow[i];
-  }
-  mysql_free_result(result);
+  const StringVector &cols = Zone::kLoadColumns;
+  std::vector<const char *> row(dbrow.mysql_row(), dbrow.mysql_row() + cols.size());
 
   for (const auto &kv : overrides) {
-    size_t i = 0;
-    for (; i < Zone::kLoadColumnCount; i++) {
-      // Type and CheckMethod are selected as Type+0 and CheckMethod+0.
-      const std::string col = Zone::kLoadColumns[i];
-      if (col == kv.first || col == kv.first + "+0") break;
-    }
-    if (i == Zone::kLoadColumnCount || i == 0) {
+    // Type and CheckMethod are selected as Type+0 and CheckMethod+0. Id, Name,
+    // Type and Units say which zone this is - and a Type change would skip
+    // ReloadZones' privacy handling - so only the detection settings change.
+    const auto col = std::find_if(cols.begin(), cols.end(), [&kv](const std::string &c) {
+      return c == kv.first || c == kv.first + "+0";
+    });
+    if (col == cols.end() || *col == "Id" || *col == "Name" || *col == "Type+0" || *col == "Units") {
       Error("Unknown or read-only zone column '%s'", kv.first.c_str());
       return false;
     }
-    if (kv.second.empty()) {
-      if (std::string(Zone::kLoadColumns[i]) == "Coords") {
-        Error("Coords cannot be empty");
-        return false;
-      }
-      is_null[i] = true;
-    } else {
-      is_null[i] = false;
-      values[i] = kv.second;
+    if (kv.second.empty() && *col == "Coords") {
+      Error("Coords cannot be empty");
+      return false;
     }
+    row[col - cols.begin()] = kv.second.empty() ? nullptr : kv.second.c_str();
   }
 
-  std::vector<char *> row(Zone::kLoadColumnCount);
-  for (size_t i = 0; i < Zone::kLoadColumnCount; i++)
-    row[i] = is_null[i] ? nullptr : &values[i][0];
-
   std::vector<Zone> rebuilt;
-  if (!Zone::LoadRow(monitor, row.data(), rebuilt) || rebuilt.empty()) return false;
+  if (!Zone::LoadRow(monitor, row.data(), rebuilt)) return false;
 
+  // A Zone cannot be assigned (its monitor is const), so build a new list.
   std::vector<Zone> zones;
   zones.reserve(monitor->Zones().size());
+  bool found = false;
   for (const Zone &zone : monitor->Zones()) {
-    if (zone.Id() == zone_id) {
-      zones.push_back(rebuilt[0]);
-    } else {
-      zones.push_back(zone);
-    }
+    found |= zone.Id() == zone_id;
+    zones.push_back(zone.Id() == zone_id ? rebuilt[0] : zone);
+  }
+  if (!found) {
+    Error("Zone %u is not loaded on monitor %u", zone_id, monitor->Id());
+    return false;
   }
   monitor->SetZones(std::move(zones));
   return true;
+}
+
+// The zones line: each detecting zone's thresholds in pixels, as CheckAlarms
+// compares them.
+static void PrintZonesJson(const Monitor &monitor, uint64_t event_id) {
+  std::string line = stringtf("{\"type\":\"zones\",\"event\":%" PRIu64 ",\"zones\":[", event_id);
+  bool first = true;
+  for (const Zone &zone : monitor.Zones()) {
+    if (zone.IsInactive() || zone.IsPrivacy()) continue;
+    line += stringtf("%s{\"id\":%u,\"name\":%s,\"checkMethod\":%d,\"area\":%d,"
+                     "\"minAlarm\":%d,\"minFilter\":%d,\"minBlob\":%d,\"minBlobs\":%d}",
+                     first ? "" : ",", zone.Id(), JsonString(zone.Name()).c_str(),
+                     static_cast<int>(zone.GetCheckMethod()), zone.GetPolygon().Area(),
+                     zone.MinAlarmPixels(), zone.MinFilterPixels(),
+                     zone.MinBlobPixels(), zone.MinBlobs());
+    first = false;
+  }
+  printf("%s]}\n", line.c_str());
+  fflush(stdout);
+}
+
+static std::string BoxJson(const Box &b) {
+  return stringtf("[%d,%d,%d,%d]", b.Lo().x_, b.Lo().y_, b.Hi().x_, b.Hi().y_);
+}
+
+// A frame line for every frame where some zone saw change, so near misses show
+// up too. t: seconds into the event, where zma decoded the frame from, so a
+// player can seek to the same frame.
+static void PrintFrameJson(const Monitor &monitor, int frame_id, double t, unsigned int score) {
+  std::string zones_json;
+  for (const Zone &zone : monitor.Zones()) {
+    const ZoneStats &st = zone.GetStats();
+    if (!st.alarm_pixels_) continue;
+    const ZoneDiagnostics &d = zone.Diagnostics();
+    zones_json += stringtf("%s{\"id\":%u,\"alarm\":%u,\"filter\":%d,\"blob\":%d,"
+                           "\"blobs\":%d,\"maxBlob\":%d,\"largestBlob\":%d,\"score\":%u,"
+                           "\"alarmBox\":%s,\"filterBox\":%s,\"blobBox\":%s}",
+                           zones_json.empty() ? "" : ",", zone.Id(), st.alarm_pixels_,
+                           st.alarm_filter_pixels_, st.alarm_blob_pixels_, st.alarm_blobs_,
+                           st.max_blob_size_, d.largest_blob, zone.Score(),
+                           BoxJson(d.alarmed_box).c_str(), BoxJson(d.filtered_box).c_str(),
+                           BoxJson(d.largest_blob_box).c_str());
+  }
+  if (zones_json.empty()) return;
+  printf("{\"type\":\"frame\",\"frame\":%d,\"t\":%.3f,\"score\":%u,\"zones\":[%s]}\n",
+         frame_id, t, score, zones_json.c_str());
 }
 
 struct ReanalysisEvent {
@@ -381,14 +413,18 @@ int main(int argc, char *argv[]) {
       break;
     case 'z':
       override_zone_id = strtoul(optarg, nullptr, 10);
+      if (!override_zone_id) {
+        fprintf(stderr, "--zone expects a zone id, got '%s'\n", optarg);
+        Usage();
+      }
       break;
     case 's': {
-      const char *eq = strchr(optarg, '=');
-      if (!eq || eq == optarg) {
+      const auto kv = PairSplit(optarg, '=');
+      if (kv.first.empty()) {
         fprintf(stderr, "--set expects <Column>=<value>, got '%s'\n", optarg);
         Usage();
       }
-      overrides[std::string(optarg, eq - optarg)] = std::string(eq + 1);
+      overrides[kv.first] = kv.second;
       break;
     }
     case 'v':
@@ -422,8 +458,8 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "--dry-run cannot be combined with --create-events or --save-analysis\n");
     Usage();
   }
-  if (!overrides.empty() && !override_zone_id) {
-    fprintf(stderr, "--set needs --zone <zone_id>\n");
+  if (overrides.empty() != !override_zone_id) {
+    fprintf(stderr, "--set and --zone go together\n");
     Usage();
   }
 
@@ -622,23 +658,7 @@ int main(int argc, char *argv[]) {
 
   Info("Loaded monitor %u '%s' with zones for analysis", monitor->Id(), monitor->Name());
 
-  if (json) {
-    // Thresholds in pixels, as CheckAlarms compares them.
-    std::string line = stringtf("{\"type\":\"zones\",\"event\":%" PRIu64 ",\"zones\":[", event_id);
-    bool first = true;
-    for (const Zone &zone : monitor->Zones()) {
-      if (zone.IsInactive() || zone.IsPrivacy()) continue;
-      line += stringtf("%s{\"id\":%u,\"name\":%s,\"checkMethod\":%d,\"area\":%d,"
-                       "\"minAlarm\":%d,\"minFilter\":%d,\"minBlob\":%d,\"minBlobs\":%d}",
-                       first ? "" : ",", zone.Id(), JsonString(zone.Name()).c_str(),
-                       static_cast<int>(zone.GetCheckMethod()), zone.GetPolygon().Area(),
-                       zone.MinAlarmPixels(), zone.MinFilterPixels(),
-                       zone.MinBlobPixels(), zone.MinBlobs());
-      first = false;
-    }
-    printf("%s]}\n", line.c_str());
-    fflush(stdout);
-  }
+  if (json) PrintZonesJson(*monitor, event_id);
 
   // Step 5: Open frame source
   bool use_video = !video_file.empty();
@@ -742,33 +762,7 @@ int main(int argc, char *argv[]) {
                                                save_analysis ? &analysis_image : nullptr);
     analysis_count++;
 
-    // Every frame where some zone saw change, so near misses show up too.
-    if (json) {
-      std::string zones_json;
-      for (const Zone &zone : monitor->Zones()) {
-        const ZoneStats &st = zone.GetStats();
-        if (!st.alarm_pixels_) continue;
-        const Box &ab = st.alarmed_box_;
-        const Box &fb = st.filtered_box_;
-        const Box &bb = st.largest_blob_box_;
-        zones_json += stringtf("%s{\"id\":%u,\"alarm\":%u,\"filter\":%d,\"blob\":%d,"
-                               "\"blobs\":%d,\"maxBlob\":%d,\"largestBlob\":%d,\"score\":%u,"
-                               "\"alarmBox\":[%d,%d,%d,%d],\"filterBox\":[%d,%d,%d,%d],"
-                               "\"blobBox\":[%d,%d,%d,%d]}",
-                               zones_json.empty() ? "" : ",", zone.Id(), st.alarm_pixels_,
-                               st.alarm_filter_pixels_, st.alarm_blob_pixels_, st.alarm_blobs_,
-                               st.max_blob_size_, st.largest_blob_, zone.Score(),
-                               ab.Lo().x_, ab.Lo().y_, ab.Hi().x_, ab.Hi().y_,
-                               fb.Lo().x_, fb.Lo().y_, fb.Hi().x_, fb.Hi().y_,
-                               bb.Lo().x_, bb.Lo().y_, bb.Hi().x_, bb.Hi().y_);
-      }
-      if (!zones_json.empty()) {
-        // t: seconds into the event, the position zma decoded the frame from,
-        // so a player can seek to the same frame.
-        printf("{\"type\":\"frame\",\"frame\":%d,\"t\":%.3f,\"score\":%u,\"zones\":[%s]}\n",
-               fd.id, FPSeconds(fd.offset).count(), score, zones_json.c_str());
-      }
-    }
+    if (json) PrintFrameJson(*monitor, fd.id, FPSeconds(fd.offset).count(), score);
 
     // Build zone string for logging
     std::string zone_str;

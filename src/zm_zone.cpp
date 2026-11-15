@@ -334,7 +334,7 @@ bool Zone::CheckAlarms(const Image *delta_image) {
 
   if (pixel_diff_count && stats.alarm_pixels_)
     stats.pixel_diff_ = pixel_diff_count/stats.alarm_pixels_;
-  if (stats.alarm_pixels_) stats.alarmed_box_ = alarmed_box;
+  if (stats.alarm_pixels_) diag.alarmed_box = alarmed_box;
 
   Debug(5, "Got %d alarmed pixels, need %d -> %d, avg pixel diff %d",
         stats.alarm_pixels_, min_alarm_pixels, max_alarm_pixels, stats.pixel_diff_);
@@ -426,7 +426,7 @@ bool Zone::CheckAlarms(const Image *delta_image) {
         }  // end for x
       }  // end foreach y line
       if (stats.alarm_filter_pixels_) {
-        stats.filtered_box_ = Box(Vector2(filter_lo_x, filter_lo_y), Vector2(filter_hi_x, filter_hi_y));
+        diag.filtered_box = Box(Vector2(filter_lo_x, filter_lo_y), Vector2(filter_hi_x, filter_hi_y));
         alarm_lo_x = filter_lo_x;
         alarm_hi_x = filter_hi_x;
         alarm_lo_y = filter_lo_y;
@@ -434,7 +434,7 @@ bool Zone::CheckAlarms(const Image *delta_image) {
       }
     } else {
       stats.alarm_filter_pixels_ = stats.alarm_pixels_;
-      stats.filtered_box_ = stats.alarmed_box_;
+      diag.filtered_box = diag.alarmed_box;
     }
 
     if (config.record_diag_images) {
@@ -616,9 +616,9 @@ bool Zone::CheckAlarms(const Image *delta_image) {
                   // See if we can recycle one first, only if it's at least two rows up
                   if (bs->count && bs->hi_y < (y-1)) {
                     // Two rows clear, so this blob is finished and its size final.
-                    if (bs->count > stats.largest_blob_) {
-                      stats.largest_blob_ = bs->count;
-                      stats.largest_blob_box_ = Box(Vector2(bs->lo_x, bs->lo_y), Vector2(bs->hi_x, bs->hi_y));
+                    if (bs->count > diag.largest_blob) {
+                      diag.largest_blob = bs->count;
+                      diag.largest_blob_box = Box(Vector2(bs->lo_x, bs->lo_y), Vector2(bs->hi_x, bs->hi_y));
                     }
                     if (
                       (min_blob_pixels && bs->count < min_blob_pixels)
@@ -695,9 +695,9 @@ bool Zone::CheckAlarms(const Image *delta_image) {
       for (uint32 i = 1; i < kWhite; i++) {
         BlobStats *bs = &blob_stats[i];
         if (bs->count) {
-          if (bs->count > stats.largest_blob_) {
-            stats.largest_blob_ = bs->count;
-            stats.largest_blob_box_ = Box(Vector2(bs->lo_x, bs->lo_y), Vector2(bs->hi_x, bs->hi_y));
+          if (bs->count > diag.largest_blob) {
+            diag.largest_blob = bs->count;
+            diag.largest_blob_box = Box(Vector2(bs->lo_x, bs->lo_y), Vector2(bs->hi_x, bs->hi_y));
           }
           if ((min_blob_pixels && bs->count < min_blob_pixels) || (max_blob_pixels && bs->count > max_blob_pixels)) {
             if (( monitor->GetOptSaveJPEGs() > 1 ) || config.record_diag_images) {
@@ -1073,23 +1073,13 @@ size_t Zone::Count(const std::shared_ptr<Monitor> &monitor) {
 }
 
 // Order matters: LoadRow reads the row by position.
-const char *const Zone::kLoadColumns[] = {
+const StringVector Zone::kLoadColumns = {
   "Id", "Name", "Type+0", "Units", "Coords", "AlarmRGB", "CheckMethod+0",
   "MinPixelThreshold", "MaxPixelThreshold", "MinAlarmPixels", "MaxAlarmPixels",
   "FilterX", "FilterY", "MinFilterPixels", "MaxFilterPixels",
   "MinBlobPixels", "MaxBlobPixels", "MinBlobs", "MaxBlobs",
   "OverloadFrames", "ExtendAlarmFrames",
 };
-const size_t Zone::kLoadColumnCount = sizeof(Zone::kLoadColumns) / sizeof(Zone::kLoadColumns[0]);
-
-std::string Zone::LoadColumnsSql() {
-  std::string cols;
-  for (size_t i = 0; i < kLoadColumnCount; i++) {
-    if (i) cols += ",";
-    cols += kLoadColumns[i];
-  }
-  return cols;
-}
 
 std::vector<Zone> Zone::Load(const std::shared_ptr<Monitor> &monitor) {
   std::string sql = stringtf("SELECT %s FROM Zones WHERE MonitorId = %d ORDER BY Type, Id",
@@ -1115,7 +1105,8 @@ std::vector<Zone> Zone::Load(const std::shared_ptr<Monitor> &monitor) {
 
 // One row in kLoadColumns order, as Load fetches it. Appends the zone to zones;
 // false when the polygon cannot be parsed and the row is skipped.
-bool Zone::LoadRow(const std::shared_ptr<Monitor> &monitor, char **dbrow, std::vector<Zone> &zones) {
+bool Zone::LoadRow(const std::shared_ptr<Monitor> &monitor, const char *const *dbrow,
+                   std::vector<Zone> &zones) {
   int col = 0;
 
   int Id = atoi(dbrow[col++]);
@@ -1362,6 +1353,7 @@ Zone::Zone(const Zone &z) :
   alarmed(z.alarmed),
   was_alarmed(z.was_alarmed),
   stats(z.stats),
+  diag(z.diag),
   overload_count(z.overload_count),
   extend_alarm_count(z.extend_alarm_count),
   diag_path(z.diag_path) {
