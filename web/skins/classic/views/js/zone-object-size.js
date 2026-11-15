@@ -1553,11 +1553,17 @@
       finishDrag(box.a, box.b);
     }
 
-    const sizeBtn = document.getElementById('objectSizeApplyBtn');
-    if (sizeBtn) sizeBtn.addEventListener('click', applyTypedSize);
+    // A typed size takes effect when the field is left, like the other zone
+    // fields; saving it is still the Save button's job.
     ['objectWidthPx', 'objectHeightPx'].forEach(function(id) {
       const el = document.getElementById(id);
       if (!el) return;
+      el.addEventListener('change', function() {
+        // Half-typed is not a mistake yet: wait for both sides.
+        const w = document.getElementById('objectWidthPx');
+        const h = document.getElementById('objectHeightPx');
+        if (w && h && w.value !== '' && h.value !== '') applyTypedSize();
+      });
       // Enter in a number field would otherwise submit the zone.
       el.addEventListener('keydown', function(evt) {
         if (evt.key !== 'Enter') return;

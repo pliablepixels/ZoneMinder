@@ -425,7 +425,6 @@ if ( count($other_zones) ) {
 									<th scope="row"><?php echo translate('RectangleObjectSize') ?></th>
 									<td>
 										<input type="number" id="objectWidthPx" min="1" step="1" title="<?php echo translate('ObjectSizeWidth') ?>" aria-label="<?php echo translate('ObjectSizeWidth') ?>"/>&times;<input type="number" id="objectHeightPx" min="1" step="1" title="<?php echo translate('ObjectSizeHeight') ?>" aria-label="<?php echo translate('ObjectSizeHeight') ?>"/>px
-										<button type="button" id="objectSizeApplyBtn" class="btn btn-normal" title="<?php echo translate('ObjectSizeApply') ?>"><?php echo translate('ObjectSizeApplyLabel') ?></button>
 										<span class="ratioHint"><?php echo translate('RectangleOrTypeSize') ?></span>
 									</td>
 								</tr>
