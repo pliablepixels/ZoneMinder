@@ -971,6 +971,7 @@ $SLANG = array(
     'ZoneReplayInAlarmKey'  => 'part of an alarm (enough in a row)',
     'ZoneReplayNext'        => 'Next frame with motion',
     'ZoneReplayNoChange'    => 'no change',
+    'ZoneReplayVs'          => 'vs',
     'ZoneReplayRerun'       => 'run again to tell',
     'ZoneReplayNoMotion'    => 'no motion',
     'ZoneReplayPrev'        => 'Previous frame with motion',

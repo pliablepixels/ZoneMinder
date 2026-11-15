@@ -340,7 +340,20 @@
 #boxLegend .lgBlobBox::before { border: 2px solid #ff00ff; }
 
 /* Labels on zma's boxes, coloured like the box. */
-#imageFrame .boxLabel.replayLabel { color: #ffffff; white-space: pre; }
+/* Set vs found for the frame on screen, pinned top left of the image. */
+#imageFrame .boxLabel.replayStats {
+    top: 4px !important;
+    left: 4px !important;
+    transform: none;
+    margin: 0;
+    padding: 3px 6px;
+    font-size: 12px;
+    color: #ffffff;
+}
+#imageFrame .replayStats div { border-left: 4px solid transparent; padding-left: 4px; }
+#imageFrame .replayStats .swatchAlarm { border-left-color: #ffa500; }
+#imageFrame .replayStats .swatchFilter { border-left-color: #00c8ff; }
+#imageFrame .replayStats .swatchBlob { border-left-color: #ff00ff; }
 /* On a dark chip everywhere, so the bright tick and cross read on the light
    page as on the image. */
 .checkMark { font-weight: bold; }

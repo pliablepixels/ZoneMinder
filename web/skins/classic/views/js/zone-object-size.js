@@ -1051,25 +1051,27 @@
   // after each name - in a label above the box; none for no label.
   const REPLAY_RECTS = ['replayAlarmRect', 'replayFilterRect', 'replayBlobRect'];
 
-  function drawReplayBox(id, box, parts) {
+  function drawReplayBox(id, box) {
     const pct = pixelBoxToPercent(box, monitorData[0].width, monitorData[0].height);
-    if (!pct) {
-      hideRects([id]);
-      hideLabels([id + 'Label']);
-      return;
-    }
-    setRect(id, pct.a, pct.b);
-    if (!parts) {
-      hideLabels([id + 'Label']);
-      return;
-    }
-    const el = placeLabel(id + 'Label', '', pct.a.x, pct.a.y);
+    if (pct) setRect(id, pct.a, pct.b); else hideRects([id]);
+  }
+
+  // Top left of the image, one row per check: the minimum set, what this frame
+  // measured, and a tick or cross. rows: [[swatch class, name, set, found, ok]].
+  function showReplayStats(rows) {
+    const el = boxLabel('replayStats');
     if (!el) return;
-    el.classList.add('replayLabel');
-    parts.forEach(function(p, i) {
-      el.appendChild(document.createTextNode((i ? '  ' : '') + p[0] + ' '));
-      el.appendChild(checkMark(p[1]));
+    el.classList.add('replayStats');
+    el.textContent = '';
+    rows.forEach(function(r) {
+      const row = document.createElement('div');
+      row.className = r[0];
+      row.appendChild(document.createTextNode(r[1] + ': ' + fmt(r[2]) + ' ' +
+          zoneObjectSizeStrings.replayVs + ' ' + fmt(r[3]) + ' '));
+      row.appendChild(checkMark(r[4]));
+      el.appendChild(row);
     });
+    el.style.display = '';
   }
 
   // Green tick, red cross, or ? for a check not reached - on the image and in
@@ -1089,33 +1091,30 @@
     if (f) {
       const str = zoneObjectSizeStrings;
       const replayStages = stageResults(f.verdict, test.now.checkMethod);
-      // One label for every check, on the outermost box.
-      const parts = [[str.replayAlarmed, replayStages.alarm]];
-      if (test.now.checkMethod >= 2) parts.push([str.replayFiltered, replayStages.filter]);
-      if (test.now.checkMethod >= 3) parts.push([str.replayBlob, replayStages.blob]);
-      drawReplayBox('replayAlarmRect', f.fz.alarmBox, parts);
-      drawReplayBox('replayFilterRect', test.now.checkMethod >= 2 ? f.fz.filterBox : null, null);
-      drawReplayBox('replayBlobRect', test.now.checkMethod >= 3 ? f.fz.blobBox : null, null);
+      const z = test.now;
+      drawReplayBox('replayAlarmRect', f.fz.alarmBox);
+      drawReplayBox('replayFilterRect', z.checkMethod >= 2 ? f.fz.filterBox : null);
+      drawReplayBox('replayBlobRect', z.checkMethod >= 3 ? f.fz.blobBox : null);
+      showReplayStats([
+        ['swatchAlarm', str.replayAlarmed, z.minAlarm, f.fz.alarm, replayStages.alarm, 1],
+        ['swatchFilter', str.replayFiltered, z.minFilter, f.fz.filter, replayStages.filter, 2],
+        ['swatchBlob', str.replayBlob, z.minBlob, f.fz.largestBlob, replayStages.blob, 3],
+      ].filter(function(r) {
+        return z.checkMethod >= r[5];
+      }));
       if (info) {
-        const z = test.now;
+        // The numbers are in the panel on the image; this says what they add up to.
         info.textContent = str.replayFrame + ' ' + f.frame;
         const add = function(text) {
           info.appendChild(document.createTextNode(' · ' + text));
         };
-        [['alarm', str.replayAlarmed, f.fz.alarm, z.minAlarm, 1],
-          ['filter', str.replayFiltered, f.fz.filter, z.minFilter, 2],
-          ['blob', str.replayBlob, f.fz.largestBlob, z.minBlob, 3]].forEach(function(r) {
-          if (z.checkMethod < r[4] || replayStages[r[0]] === undefined) return;
-          add(r[1] + ' ' + fmt(r[2]) + '/' + fmt(r[3]) + ' ');
-          info.appendChild(checkMark(replayStages[r[0]]));
-        });
         if (f.verdict.unknown) add(zoneObjectSizeStrings.testUnknownFrame);
         // A failed check already shows as a cross; say only what passing adds.
         if (f.verdict.scored) add(f.inAlarm ? str.replayInAlarm : str.replayScored);
       }
     } else {
       hideRects(REPLAY_RECTS);
-      hideLabels(['replayAlarmRectLabel']);
+      hideLabels(['replayStats']);
       if (info) info.textContent = video.currentTime.toFixed(2) + 's - ' + zoneObjectSizeStrings.replayNoMotion;
     }
     refreshOverlay();
@@ -1224,7 +1223,7 @@
     const controls = document.getElementById('replayControls');
     if (controls) controls.style.display = 'none';
     hideRects(REPLAY_RECTS);
-    hideLabels(['replayAlarmRectLabel']);
+    hideLabels(['replayStats']);
     updateLegend();
     liveButtons(true);
     liveStream(true);

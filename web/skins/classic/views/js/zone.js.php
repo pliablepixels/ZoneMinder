@@ -118,6 +118,7 @@ var zoneObjectSizeStrings = {
   'labelEstimate': '<?php echo addslashes(translate('ZoneLabelEstimate')) ?>',
   'replayFrame': '<?php echo addslashes(translate('ZoneReplayFrame')) ?>',
   'replayAlarmed': '<?php echo addslashes(translate('ZoneReplayAlarmed')) ?>',
+  'replayVs': '<?php echo addslashes(translate('ZoneReplayVs')) ?>',
   'replayBlob': '<?php echo addslashes(translate('ZoneReplayBlob')) ?>',
   'replayFiltered': '<?php echo addslashes(translate('ZoneReplayFiltered')) ?>',
   'replayScored': '<?php echo addslashes(translate('ZoneReplayScored')) ?>',
