@@ -118,6 +118,7 @@ var zoneObjectSizeStrings = {
   'labelBlob': '<?php echo addslashes(translate('ZoneLabelBlob')) ?>',
   'replayFrame': '<?php echo addslashes(translate('ZoneReplayFrame')) ?>',
   'replayAlarmed': '<?php echo addslashes(translate('ZoneReplayAlarmed')) ?>',
+  'replayBlob': '<?php echo addslashes(translate('ZoneReplayBlob')) ?>',
   'replayFiltered': '<?php echo addslashes(translate('ZoneReplayFiltered')) ?>',
   'replayScored': '<?php echo addslashes(translate('ZoneReplayScored')) ?>',
   'testNotDetecting': '<?php echo addslashes(translate('ZoneTestNotDetecting')) ?>',

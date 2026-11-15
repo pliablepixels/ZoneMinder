@@ -1025,8 +1025,8 @@
 
   // label: [above the top-left corner | under the bottom-left one, text].
   // parts: [[name, true | false | undefined]] - a green tick, red cross or ?
-  // after each name.
-  function drawReplayBox(id, box, cls, above, parts) {
+  // after each name - in a label above the box; none for no label.
+  function drawReplayBox(id, box, cls, parts) {
     const pct = pixelBoxToPercent(box, monitorData[0].width, monitorData[0].height);
     if (!pct) {
       hideRects([id]);
@@ -1036,9 +1036,12 @@
     const r = setRect(id, pct.a, pct.b);
     r.classList.toggle('testPass', cls === 'pass');
     r.classList.toggle('testFail', cls === 'fail');
-    const el = placeLabel(id + 'Label', '', pct.a.x, above ? pct.a.y : pct.b.y);
+    if (!parts) {
+      hideLabels([id + 'Label']);
+      return;
+    }
+    const el = placeLabel(id + 'Label', '', pct.a.x, pct.a.y);
     if (!el) return;
-    el.classList.toggle('under', !above);
     el.classList.add('replayLabel');
     parts.forEach(function(p, i) {
       el.appendChild(document.createTextNode((i ? '  ' : '') + p[0] + ' '));
@@ -1070,13 +1073,14 @@
         if (vs.indexOf(false) >= 0) return 'fail';
         return vs.indexOf(true) >= 0 && vs.indexOf(undefined) < 0 ? 'pass' : '';
       };
-      const motionParts = [[str.replayAlarmed, replayStages.alarm]];
-      if (test.now.checkMethod >= 2) motionParts.push([str.replayFiltered, replayStages.filter]);
+      // One label for every check, on the outer box.
+      const parts = [[str.replayAlarmed, replayStages.alarm]];
+      if (test.now.checkMethod >= 2) parts.push([str.replayFiltered, replayStages.filter]);
+      if (test.now.checkMethod >= 3) parts.push([str.replayBlob, replayStages.blob]);
       drawReplayBox('replayMotionRect', f.fz.motionBox,
-          tone(test.now.checkMethod >= 2 ? ['alarm', 'filter'] : ['alarm']), true, motionParts);
-      const blobOn = test.now.checkMethod >= 3;
-      drawReplayBox('replayBlobRect', f.fz.blobBox, blobOn ? tone(['blob']) : '', false,
-          [[str.labelBlob, blobOn ? replayStages.blob : undefined]]);
+          tone(test.now.checkMethod >= 2 ? ['alarm', 'filter'] : ['alarm']), parts);
+      drawReplayBox('replayBlobRect', f.fz.blobBox,
+          test.now.checkMethod >= 3 ? tone(['blob']) : '', null);
       if (info) {
         const parts = [str.replayFrame + ' ' + f.frame];
         const z = test.now;

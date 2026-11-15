@@ -961,6 +961,7 @@ $SLANG = array(
     'ZoneLegendObject'    => 'object box - the smallest thing that should alarm; drag to move, corner to resize',
     'ZoneReplayLiveOff'     => 'Showing a recording - use Exit to go back to live',
     'ZoneReplayAlarmed'     => 'alarmed',
+    'ZoneReplayBlob'        => 'blob',
     'ZoneReplayClose'       => 'Close the replay and return to the live view',
     'ZoneReplayFiltered'    => 'filtered',
     'ZoneReplayFrame'       => 'frame',

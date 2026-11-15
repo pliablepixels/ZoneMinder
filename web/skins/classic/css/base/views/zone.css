@@ -331,7 +331,6 @@
 #boxLegend .lgBlobBox::before { border: 2px solid #808080; }
 
 /* Labels on zma's boxes, coloured like the box. */
-#imageFrame .boxLabel.under { transform: none; margin-top: 2px; }
 #imageFrame .boxLabel.replayLabel { color: #ffffff; white-space: pre; }
 #imageFrame .boxLabel .ok { color: #40ff40; font-weight: bold; }
 #imageFrame .boxLabel .bad { color: #ff5050; font-weight: bold; }
