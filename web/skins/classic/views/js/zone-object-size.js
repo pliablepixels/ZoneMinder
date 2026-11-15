@@ -962,7 +962,8 @@
   // the frame on screen drawn over it and a timeline of every frame.
   //
   let replay = null;
-  const STAGE_COLOURS = {alarm: '#ffa500', filter: '#00c8ff', blob: '#ff00ff'};
+  // Matches .legend .fail* in zone.css.
+  const STAGE_COLOURS = {alarm: '#f4b4b4', filter: '#e06666', blob: '#a01818'};
 
   function replayVideo() {
     let video = document.getElementById('replayVideo');
@@ -1010,7 +1011,7 @@
     replay.frames.forEach(function(f) {
       const v = f.verdict;
       seen[v.scored ? 'legendScored' : v.unknown ? 'legendRerun' :
-          {alarm: 'swatchAlarm', filter: 'swatchFilter', blob: 'swatchBlob'}[v.failedAt]] = true;
+          {alarm: 'failAlarm', filter: 'failFilter', blob: 'failBlob'}[v.failedAt]] = true;
       if (f.inAlarm) seen.legendInAlarm = true;
       ctx.fillStyle = frameColour(f);
       ctx.fillRect(f.t / duration * w, 0, barW, h);

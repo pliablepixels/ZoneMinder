@@ -305,9 +305,10 @@
 /* Timeline: one colour per frame. */
 .legend .legendScored::before { background: #00c000; }
 .legend .legendInAlarm::before { background: linear-gradient(#005000 33%, #00c000 33%); }
-.legend .swatchAlarm::before { background: #ffa500; }
-.legend .swatchFilter::before { background: #00c8ff; }
-.legend .swatchBlob::before { background: #ff00ff; }
+/* Reds, darker the further the frame got: not the threshold rect colours. */
+.legend .failAlarm::before { background: #f4b4b4; }
+.legend .failFilter::before { background: #e06666; }
+.legend .failBlob::before { background: #a01818; }
 .legend .legendNone::before { background: rgba(128,128,128,0.25); }
 .legend .legendRerun::before { background: #505050; }
 /* One box per line, so each can say what it is in full. */
@@ -345,11 +346,12 @@
 #zoneTestPanel { margin-top: 0.5em; }
 #zoneTestPanel .zoneTestTitle { cursor: help; font-weight: bold; }
 
-/* Same colours as the threshold rects on the image. */
-th.swatch { border-left: 4px solid transparent; }
-th.swatch.swatchAlarm { border-left-color: #ffa500; }
-th.swatch.swatchFilter { border-left-color: #00c8ff; }
-th.swatch.swatchBlob { border-left-color: #ff00ff; }
+/* Same colours as the threshold rects on the image. Under the table ids, or
+   #zoneSettings th's own border wins. */
+#zoneSettings th.swatch, #rectangleSettings th.swatch { border-left: 4px solid transparent; }
+#zoneSettings th.swatchAlarm, #rectangleSettings th.swatchAlarm { border-left-color: #ffa500; }
+#zoneSettings th.swatchFilter, #rectangleSettings th.swatchFilter { border-left-color: #00c8ff; }
+#zoneSettings th.swatchBlob, #rectangleSettings th.swatchBlob { border-left-color: #ff00ff; }
 
 #zonePoints table table th,
 #zonePoints table table td {

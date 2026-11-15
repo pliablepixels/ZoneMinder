@@ -303,9 +303,9 @@ if ( count($other_zones) ) {
                     <div id="replayLegend" class="legend">
                       <span class="legendInAlarm"><?php echo translate('ZoneReplayInAlarmKey') ?></span>
                       <span class="legendScored"><?php echo translate('ZoneReplayScored') ?></span>
-                      <span class="swatchAlarm"><?php echo translate('ZoneReplayFailAlarm') ?></span>
-                      <span class="swatchFilter"><?php echo translate('ZoneReplayFailFilter') ?></span>
-                      <span class="swatchBlob"><?php echo translate('ZoneReplayFailBlob') ?></span>
+                      <span class="failAlarm"><?php echo translate('ZoneReplayFailAlarm') ?></span>
+                      <span class="failFilter"><?php echo translate('ZoneReplayFailFilter') ?></span>
+                      <span class="failBlob"><?php echo translate('ZoneReplayFailBlob') ?></span>
                       <span class="legendNone"><?php echo translate('ZoneReplayNoChange') ?></span>
                       <span class="legendRerun"><?php echo translate('ZoneReplayRerun') ?></span>
                     </div>
