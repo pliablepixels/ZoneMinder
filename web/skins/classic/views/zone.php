@@ -252,6 +252,9 @@ if ( count($other_zones) ) {
                 <button type="button" id="objectSizeUndoBtn" class="btn btn-normal" style="display:none" title="<?php echo translate('ObjectSizeUndo') ?>">
                   <i class="material-icons md-18">undo</i>
                 </button>
+                <button type="button" id="zoneTestToggleBtn" class="btn btn-normal" title="<?php echo translate('ZoneTest') ?>">
+                  <i class="material-icons md-18">history</i>
+                </button>
               </div>
               <div id="playerControl">
                 <label for="player"><?php echo translate('Player') ?></label>
@@ -272,6 +275,64 @@ if ( count($other_zones) ) {
                 echo htmlSelect('codec', $players, $player, array('data-on-change'=>'changePlayer','id'=>'player','class'=>'chosen'));
 ?>
               </div>
+            </div>
+            <div id="zoneTestPanel" style="display:none">
+              <div class="zoneTestTitle" title="<?php echo translate('ZoneTestHelp') ?>"><?php echo translate('ZoneTest') ?> <i class="material-icons md-18">help_outline</i></div>
+            <table id="zoneTest">
+              <tbody>
+                <tr>
+                  <td>
+                    <select id="zoneTestEvent" aria-label="<?php echo translate('Event') ?>"<?php echo $test_disabled ? ' disabled' : '' ?>>
+<?php foreach ( $test_events as $test_event ) {
+  # A video to replay the result over; JPEG-only events can be tested but not replayed.
+  $video = $test_event->DefaultVideo() ? $test_event->getStreamSrc(array('mode'=>'mp4')) : '';
+?>
+                      <option value="<?php echo $test_event->Id() ?>" data-video="<?php echo validHtmlStr($video) ?>"><?php echo $test_event->Id().' - '.validHtmlStr($test_event->StartDateTime()).' ('.round($test_event->Length()).'s, '.validHtmlStr($test_event->Cause()).')' ?></option>
+<?php } ?>
+                    </select>
+                    <!-- A disabled button gets no hover, so the reason sits on a wrapper. -->
+                    <span title="<?php echo validHtmlStr($test_disabled) ?>">
+                      <button type="button" id="zoneTestBtn" class="btn btn-normal"<?php echo $test_disabled ? ' disabled' : '' ?>><?php echo translate('ZoneTestRun') ?></button>
+                    </span>
+                  </td>
+                </tr>
+                <tr><td id="zoneTestResult"></td></tr>
+                <tr id="replayControls" style="display:none">
+                  <td>
+                    <canvas id="replayTimeline" height="24" title="<?php echo translate('ZoneReplayTimeline') ?>"></canvas>
+                    <div id="replayLegend" class="legend">
+                      <span class="legendScored"><?php echo translate('ZoneReplayScored') ?></span>
+                      <span class="swatchAlarm"><?php echo translate('ZoneReplayFailAlarm') ?></span>
+                      <span class="swatchFilter"><?php echo translate('ZoneReplayFailFilter') ?></span>
+                      <span class="swatchBlob"><?php echo translate('ZoneReplayFailBlob') ?></span>
+                      <span class="legendNone"><?php echo translate('ZoneReplayNoChange') ?></span>
+                      <span class="legendRerun"><?php echo translate('ZoneReplayRerun') ?></span>
+                    </div>
+                    <div>
+                      <button type="button" id="replayPrevBtn" class="btn btn-normal" title="<?php echo translate('ZoneReplayPrev') ?>"><i class="material-icons md-18">skip_previous</i></button>
+                      <button type="button" id="replayPlayBtn" class="btn btn-normal" title="<?php echo translate('Play') ?>"><i class="material-icons md-18">play_arrow</i></button>
+                      <button type="button" id="replayNextBtn" class="btn btn-normal" title="<?php echo translate('ZoneReplayNext') ?>"><i class="material-icons md-18">skip_next</i></button>
+                      <button type="button" id="replayCloseBtn" class="btn btn-normal" title="<?php echo translate('ZoneReplayClose') ?>"><i class="material-icons md-18">close</i> <?php echo translate('Exit') ?></button>
+                      <span id="replayFrameInfo"></span>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div id="boxLegend" class="legend">
+                      <div class="lgObject" data-rect="objectRect" data-saved="0"><?php echo translate('ZoneLegendObject') ?></div>
+                      <div class="lgEstimate" data-rect="objectRect" data-saved="1"><?php echo translate('ZoneLegendEstimate') ?></div>
+                      <div class="lgAlarm" data-rect="objectAlarmRect"><?php echo translate('ZoneLegendAlarm') ?></div>
+                      <div class="lgFilter" data-rect="objectFilterRect"><?php echo translate('ZoneLegendFilter') ?></div>
+                      <div class="lgBlob" data-rect="objectBlobRect"><?php echo translate('ZoneLegendBlob') ?></div>
+                      <div class="lgKernel" data-rect="objectKernelRect"><?php echo translate('ZoneLegendKernel') ?></div>
+                      <div class="lgMotion" data-rect="replayMotionRect"><?php echo translate('ZoneLegendMotion') ?></div>
+                      <div class="lgBlobBox" data-rect="replayBlobRect"><?php echo translate('ZoneLegendBlobBox') ?></div>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
             </div>
           </div><!--image & buttons-->
 
@@ -356,64 +417,6 @@ if ( count($other_zones) ) {
 								</tr>
 							</tbody>
 						</table>
-            <details id="zoneTestPanel">
-              <summary title="<?php echo translate('ZoneTestHelp') ?>"><?php echo translate('ZoneTest') ?> <i class="material-icons md-18">help_outline</i></summary>
-            <table id="zoneTest">
-              <tbody>
-                <tr>
-                  <td>
-                    <select id="zoneTestEvent" aria-label="<?php echo translate('Event') ?>"<?php echo $test_disabled ? ' disabled' : '' ?>>
-<?php foreach ( $test_events as $test_event ) {
-  # A video to replay the result over; JPEG-only events can be tested but not replayed.
-  $video = $test_event->DefaultVideo() ? $test_event->getStreamSrc(array('mode'=>'mp4')) : '';
-?>
-                      <option value="<?php echo $test_event->Id() ?>" data-video="<?php echo validHtmlStr($video) ?>"><?php echo $test_event->Id().' - '.validHtmlStr($test_event->StartDateTime()).' ('.round($test_event->Length()).'s, '.validHtmlStr($test_event->Cause()).')' ?></option>
-<?php } ?>
-                    </select>
-                    <!-- A disabled button gets no hover, so the reason sits on a wrapper. -->
-                    <span title="<?php echo validHtmlStr($test_disabled) ?>">
-                      <button type="button" id="zoneTestBtn" class="btn btn-normal"<?php echo $test_disabled ? ' disabled' : '' ?>><?php echo translate('ZoneTestRun') ?></button>
-                    </span>
-                  </td>
-                </tr>
-                <tr><td id="zoneTestResult"></td></tr>
-                <tr id="replayControls" style="display:none">
-                  <td>
-                    <canvas id="replayTimeline" height="24" title="<?php echo translate('ZoneReplayTimeline') ?>"></canvas>
-                    <div id="replayLegend" class="legend">
-                      <span class="legendScored"><?php echo translate('ZoneReplayScored') ?></span>
-                      <span class="swatchAlarm"><?php echo translate('ZoneReplayFailAlarm') ?></span>
-                      <span class="swatchFilter"><?php echo translate('ZoneReplayFailFilter') ?></span>
-                      <span class="swatchBlob"><?php echo translate('ZoneReplayFailBlob') ?></span>
-                      <span class="legendNone"><?php echo translate('ZoneReplayNoChange') ?></span>
-                      <span class="legendRerun"><?php echo translate('ZoneReplayRerun') ?></span>
-                    </div>
-                    <div>
-                      <button type="button" id="replayPrevBtn" class="btn btn-normal" title="<?php echo translate('ZoneReplayPrev') ?>"><i class="material-icons md-18">skip_previous</i></button>
-                      <button type="button" id="replayPlayBtn" class="btn btn-normal" title="<?php echo translate('Play') ?>"><i class="material-icons md-18">play_arrow</i></button>
-                      <button type="button" id="replayNextBtn" class="btn btn-normal" title="<?php echo translate('ZoneReplayNext') ?>"><i class="material-icons md-18">skip_next</i></button>
-                      <button type="button" id="replayCloseBtn" class="btn btn-normal" title="<?php echo translate('ZoneReplayClose') ?>"><i class="material-icons md-18">close</i> <?php echo translate('Exit') ?></button>
-                      <span id="replayFrameInfo"></span>
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <div id="boxLegend" class="legend">
-                      <div class="lgObject" data-rect="objectRect" data-saved="0"><?php echo translate('ZoneLegendObject') ?></div>
-                      <div class="lgEstimate" data-rect="objectRect" data-saved="1"><?php echo translate('ZoneLegendEstimate') ?></div>
-                      <div class="lgAlarm" data-rect="objectAlarmRect"><?php echo translate('ZoneLegendAlarm') ?></div>
-                      <div class="lgFilter" data-rect="objectFilterRect"><?php echo translate('ZoneLegendFilter') ?></div>
-                      <div class="lgBlob" data-rect="objectBlobRect"><?php echo translate('ZoneLegendBlob') ?></div>
-                      <div class="lgKernel" data-rect="objectKernelRect"><?php echo translate('ZoneLegendKernel') ?></div>
-                      <div class="lgMotion" data-rect="replayMotionRect"><?php echo translate('ZoneLegendMotion') ?></div>
-                      <div class="lgBlobBox" data-rect="replayBlobRect"><?php echo translate('ZoneLegendBlobBox') ?></div>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            </details>
 						<table id="rectangleSettings" style="display:none">
 							<caption><?php echo translate('RectangleMeasure') ?></caption>
 							<tbody>

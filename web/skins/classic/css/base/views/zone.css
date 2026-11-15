@@ -342,7 +342,7 @@
 .zones .testFail { stroke: #ff0000 !important; stroke-width: 3px !important; }
 
 #zoneTestPanel { margin-top: 0.5em; }
-#zoneTestPanel summary { cursor: pointer; font-weight: bold; }
+#zoneTestPanel .zoneTestTitle { cursor: help; font-weight: bold; }
 
 #rectangleSettings th.swatch { border-left: 4px solid transparent; }
 #rectangleSettings th.swatch.swatchAlarm { border-left-color: #ffa500; }

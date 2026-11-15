@@ -1234,6 +1234,18 @@
   function init() {
     const testBtn = document.getElementById('zoneTestBtn');
     if (testBtn) testBtn.addEventListener('click', runTest);
+    // Opens the test under the image, like the other tools in that row.
+    const testToggle = document.getElementById('zoneTestToggleBtn');
+    const testPanel = document.getElementById('zoneTestPanel');
+    if (testToggle && testPanel) {
+      testToggle.addEventListener('click', function() {
+        const open = testPanel.style.display === 'none';
+        testPanel.style.display = open ? '' : 'none';
+        // Same on/off look as the object size button.
+        testToggle.classList.toggle('btn-primary', open);
+        if (!open) closeReplay();
+      });
+    }
     if (document.zoneForm) {
       ['input', 'change'].forEach(function(type) {
         document.zoneForm.addEventListener(type, function(evt) {
