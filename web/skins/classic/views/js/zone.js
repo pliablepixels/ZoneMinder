@@ -879,8 +879,9 @@ function changeScale() {
   const newSize = scaleToFit(monitorData[0].width, monitorData[0].height, feed, controls, $j('#imageAndPoints'));
   if (!newSize) return;
   feed.css('width', newSize.width+'px');
-  // Line the stream controls up with the video, which is centred in the column
-  controls.css({
+  // Line the stream controls and the zone test panel up with the video, which
+  // is centred in the column
+  controls.add('#zoneTestPanel').css({
     'width': newSize.width+'px',
     'margin-left': (feed.offset().left - $j('#imageAndPoints').offset().left)+'px'
   });
