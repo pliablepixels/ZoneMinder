@@ -1001,7 +1001,13 @@
     ctx.fillRect(0, 0, w, h);
     const duration = video.duration || replay.lastT || 1;
     const barW = Math.max(1, w / Math.max(replay.totalFrames, 1));
+    // The legend lists only colours on the strip. Grey is the background.
+    const seen = {legendNone: true};
     replay.frames.forEach(function(f) {
+      const v = f.verdict;
+      seen[v.scored ? 'legendScored' : v.unknown ? 'legendRerun' :
+          {alarm: 'swatchAlarm', filter: 'swatchFilter', blob: 'swatchBlob'}[v.failedAt]] = true;
+      if (f.inAlarm) seen.legendInAlarm = true;
       ctx.fillStyle = frameColour(f);
       ctx.fillRect(f.t / duration * w, 0, barW, h);
       if (f.inAlarm) {
@@ -1011,6 +1017,9 @@
     });
     ctx.fillStyle = '#000000';
     ctx.fillRect(video.currentTime / duration * w - dpr, 0, 2 * dpr, h);
+    document.querySelectorAll('#replayLegend span').forEach(function(item) {
+      item.style.display = seen[item.className] ? '' : 'none';
+    });
   }
 
   // label: [above the top-left corner | under the bottom-left one, text].
