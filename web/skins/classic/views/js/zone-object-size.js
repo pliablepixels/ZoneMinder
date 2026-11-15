@@ -712,8 +712,6 @@
     setLastBox(null);
     const btn = document.getElementById('objectSizeUndoBtn');
     if (btn) btn.style.display = 'none';
-    const panel = document.getElementById('rectangleSettings');
-    if (panel && !armed) panel.style.display = 'none';
     refreshOverlay();
   }
 
@@ -721,9 +719,10 @@
     armed = on;
     const btn = document.getElementById('objectSizeBtn');
     if (btn) btn.classList.toggle('btn-primary', on);
-    // Stays up after a measurement so the ratios can be tuned against the box.
+    // Follows the button. A saved box always exists now, so it cannot be what
+    // keeps the panel up, or the button could never close it.
     const panel = document.getElementById('rectangleSettings');
-    if (panel) panel.style.display = (on || lastBox) ? '' : 'none';
+    if (panel) panel.style.display = on ? '' : 'none';
     const feed = imageFeed();
     if (feed) {
       feed.style.cursor = on ? 'crosshair' : '';
@@ -1659,9 +1658,6 @@
         drawRect(edit.box.a, at);
         if (done) {
           finishDrag(edit.box.a, at);
-          // Tuning the ratios against the new box needs the panel.
-          const panel = document.getElementById('rectangleSettings');
-          if (panel && lastBox) panel.style.display = '';
         } else {
           apply(edit.box.a, at);
         }
