@@ -356,7 +356,7 @@ if ( count($other_zones) ) {
 								</tr>
 							</tbody>
 						</table>
-            <details id="zoneTestPanel" open>
+            <details id="zoneTestPanel">
               <summary title="<?php echo translate('ZoneTestHelp') ?>"><?php echo translate('ZoneTest') ?> <i class="material-icons md-18">help_outline</i></summary>
             <table id="zoneTest">
               <tbody>
