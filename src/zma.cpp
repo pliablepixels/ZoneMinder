@@ -101,7 +101,8 @@ void Usage() {
   fprintf(stderr, "  -n, --dry-run                : Change no events or scores and create none\n");
   fprintf(stderr, "  -j, --json                   : Print zone thresholds and per-frame zone stats as JSON lines\n");
   fprintf(stderr, "  -z, --zone <zone_id>         : The zone that --set applies to\n");
-  fprintf(stderr, "  -s, --set <Column>=<value>   : Replace a saved value of that zone for this run (repeatable)\n");
+  fprintf(stderr, "  -s, --set <Column>=<value>   : Replace a detection setting of that zone for this run;\n"
+                  "                                 not Id/Name/Type/Units (repeatable, needs --zone)\n");
   fprintf(stderr, "  -v, --verbose                : Increase debug verbosity\n");
   fprintf(stderr, "  -h, --help                   : This screen\n");
   fprintf(stderr, "  -V, --version                : Report the installed version of ZoneMinder\n");
