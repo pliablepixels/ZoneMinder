@@ -389,17 +389,17 @@ if ( count($other_zones) ) {
 									<td><span class="zoneArea" id="areaPixels"></span> px</td>
 								</tr>
 								<tr>
-									<th scope="row"><?php echo translate('ZoneMinMaxAlarmArea') ?></th>
+									<th scope="row" class="swatch swatchAlarm"><?php echo translate('ZoneMinMaxAlarmArea') ?></th>
 									<td><input type="number" name="newZone[MinAlarmPixels]" value="<?php echo $zone['MinAlarmPixels'] ?>" step="any" max="100" min="0"/>% <input type="number" class="pxInput" id="MinAlarmPixels_px" min="0" step="1"/> px</td>
 									<td><input type="number" name="newZone[MaxAlarmPixels]" value="<?php echo $zone['MaxAlarmPixels'] ?>" step="any" max="100" min="0"/>% <input type="number" class="pxInput" id="MaxAlarmPixels_px" min="0" step="1"/> px</td>
 								</tr>
 								<tr>
-									<th scope="row"><?php echo translate('ZoneMinMaxFiltArea') ?></th>
+									<th scope="row" class="swatch swatchFilter"><?php echo translate('ZoneMinMaxFiltArea') ?></th>
 									<td><input type="number" name="newZone[MinFilterPixels]" value="<?php echo $zone['MinFilterPixels'] ?>" step="any" max="100" min="0"/>% <input type="number" class="pxInput" id="MinFilterPixels_px" min="0" step="1"/> px</td>
 									<td><input type="number" name="newZone[MaxFilterPixels]" value="<?php echo $zone['MaxFilterPixels'] ?>" step="any" max="100" min="0"/>% <input type="number" class="pxInput" id="MaxFilterPixels_px" min="0" step="1"/> px</td>
 								</tr>
 								<tr>
-									<th scope="row"><?php echo translate('ZoneMinMaxBlobArea') ?></th>
+									<th scope="row" class="swatch swatchBlob"><?php echo translate('ZoneMinMaxBlobArea') ?></th>
 									<td><input type="number" name="newZone[MinBlobPixels]" value="<?php echo $zone['MinBlobPixels'] ?>" step="any" max="100" min="0"/>% <input type="number" class="pxInput" id="MinBlobPixels_px" min="0" step="1"/> px</td>
 									<td><input type="number" name="newZone[MaxBlobPixels]" value="<?php echo $zone['MaxBlobPixels'] ?>" step="any" max="100" min="0"/>% <input type="number" class="pxInput" id="MaxBlobPixels_px" min="0" step="1"/> px</td>
 								</tr>

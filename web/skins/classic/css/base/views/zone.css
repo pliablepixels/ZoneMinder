@@ -345,10 +345,11 @@
 #zoneTestPanel { margin-top: 0.5em; }
 #zoneTestPanel .zoneTestTitle { cursor: help; font-weight: bold; }
 
-#rectangleSettings th.swatch { border-left: 4px solid transparent; }
-#rectangleSettings th.swatch.swatchAlarm { border-left-color: #ffa500; }
-#rectangleSettings th.swatch.swatchFilter { border-left-color: #00c8ff; }
-#rectangleSettings th.swatch.swatchBlob { border-left-color: #ff00ff; }
+/* Same colours as the threshold rects on the image. */
+th.swatch { border-left: 4px solid transparent; }
+th.swatch.swatchAlarm { border-left-color: #ffa500; }
+th.swatch.swatchFilter { border-left-color: #00c8ff; }
+th.swatch.swatchBlob { border-left-color: #ff00ff; }
 
 #zonePoints table table th,
 #zonePoints table table td {
