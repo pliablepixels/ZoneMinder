@@ -820,7 +820,7 @@
     const out = document.getElementById('zoneTestResult');
     if (!out || !test) return;
     const t = test.tally;
-    let text = test.done.frames + ' frames - ' + t.scored + ' score - ' +
+    let text = test.done.frames + ' frames - ' + t.scored + ' alarm frame(s) - ' +
         (t.wouldAlarm ? 'would alarm' : 'would not alarm') +
         ' (needs ' + test.done.alarmFrameCount + ' scored frames in a row)';
     if (t.unknown) text += ' - ' + t.unknown + ' ' + zoneObjectSizeStrings.testUnknown;
@@ -841,7 +841,7 @@
   // Settings that change what zma measures, not just how it is judged.
   function measuredKey(values) {
     return [values.MinPixelThreshold, values.MaxPixelThreshold, values.FilterX,
-      values.FilterY, values.OverloadFrames, getCoordString()].join('|');
+      values.FilterY, getCoordString()].join('|');
   }
 
   // After any form change: re-judge every frame against the new thresholds,
@@ -880,15 +880,21 @@
       command: 'test',
       mid: zone.MonitorId, zid: form.elements['zid'].value, eid: select.value,
     };
-    // The form as it stands, saved or not. Disabled fields are left out, as a
-    // save would leave them out.
-    data['newZone[Coords]'] = getCoordString();
-    data['newZone[CheckMethod]'] = form.elements['newZone[CheckMethod]'].value;
-    MANAGED_FIELDS.forEach(function(field) {
-      const el = form.elements['newZone[' + field + ']'];
-      if (el && !el.disabled) data['newZone[' + field + ']'] = el.value;
-    });
+    // zma measures with the form's pixel threshold, filter and blob size, but
+    // with every alarmed/filtered limit off and all three stages on, so it
+    // measures every stage of every frame instead of stopping at the first
+    // that fails. rejudgeTest then applies the form's limits.
+    // ponytail: blob size stays on - with none, noise blobs can exhaust
+    // CheckAlarms' blob slots; so blob size changes judge from the largest blob.
     const sent = formValues();
+    sent.CheckMethod = 'Blobs';
+    ['MinAlarmPixels', 'MaxAlarmPixels', 'MinFilterPixels', 'MaxFilterPixels'].forEach(function(f) {
+      sent[f] = '0';
+    });
+    data['newZone[Coords]'] = getCoordString();
+    Object.keys(sent).forEach(function(field) {
+      data['newZone[' + field + ']'] = sent[field];
+    });
     btn.disabled = true;
     closeReplay();
     test = null;
@@ -1072,12 +1078,30 @@
     };
     if (stillShown) hideStill();
     streamCmdPause();
+    liveButtons(false);
     video.src = src;
     video.style.display = '';
     const controls = document.getElementById('replayControls');
     if (controls) controls.style.display = '';
     if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(onVideoFrame);
     showReplayFrame();
+  }
+
+  // The live stream's buttons do nothing to the recording, so grey them out
+  // while it is up.
+  function liveButtons(on) {
+    ['playBtn', 'pauseBtn', 'analyseBtn'].forEach(function(id) {
+      const b = document.getElementById(id);
+      if (!b) return;
+      if (on) {
+        b.disabled = false;
+        if (b.dataset.liveTitle !== undefined) b.title = b.dataset.liveTitle;
+      } else {
+        b.disabled = true;
+        b.dataset.liveTitle = b.title;
+        b.title = zoneObjectSizeStrings.liveOff;
+      }
+    });
   }
 
   function closeReplay() {
@@ -1094,6 +1118,7 @@
     const controls = document.getElementById('replayControls');
     if (controls) controls.style.display = 'none';
     hideRects(['replayMotionRect', 'replayBlobRect']);
+    liveButtons(true);
     streamCmdPlay();
     refreshOverlay();
   }

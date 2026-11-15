@@ -291,22 +291,35 @@
     cursor: pointer;
 }
 #replayFrameInfo { margin-left: 0.5em; }
-#replayLegend { font-size: 0.85em; margin: 2px 0; }
-#replayLegend span { margin-right: 0.8em; white-space: nowrap; }
-#replayLegend span::before {
+.legend { font-size: 0.85em; margin: 2px 0; }
+.legend span { margin-right: 0.8em; white-space: nowrap; }
+.legend span::before {
     content: "";
     display: inline-block;
-    width: 0.8em;
-    height: 0.8em;
+    box-sizing: border-box;
+    width: 0.9em;
+    height: 0.9em;
     margin-right: 0.3em;
     vertical-align: middle;
 }
-#replayLegend .legendScored::before { background: #00c000; }
-#replayLegend .swatchAlarm::before { background: #ffa500; }
-#replayLegend .swatchFilter::before { background: #00c8ff; }
-#replayLegend .swatchBlob::before { background: #ff00ff; }
-#replayLegend .legendNone::before { background: rgba(128,128,128,0.25); }
-#replayLegend .legendRerun::before { background: #505050; }
+/* Timeline: one colour per frame. */
+.legend .legendScored::before { background: #00c000; }
+.legend .swatchAlarm::before { background: #ffa500; }
+.legend .swatchFilter::before { background: #00c8ff; }
+.legend .swatchBlob::before { background: #ff00ff; }
+.legend .legendNone::before { background: rgba(128,128,128,0.25); }
+.legend .legendRerun::before { background: #505050; }
+/* Boxes on the image, drawn as they are drawn there. */
+.legend .lgObject::before { border: 2px solid #ffff00; }
+.legend .lgEstimate::before { border: 2px dashed #ffff00; }
+.legend .lgAlarm::before { background: rgba(255, 165, 0, 0.15); border: 1px solid #ffa500; }
+.legend .lgFilter::before { background: rgba(0, 200, 255, 0.15); border: 1px solid #00c8ff; }
+.legend .lgBlob::before { background: rgba(255, 0, 255, 0.2); border: 1px solid #ff00ff; }
+.legend .lgKernel::before { background: #ffffff; border: 1px solid #000000; }
+.legend .lgMotion::before { border: 2px dashed #808080; }
+.legend .lgBlobBox::before { border: 2px solid #808080; }
+.legend .lgPass::before { border: 3px solid #00c000; }
+.legend .lgFail::before { border: 3px solid #ff0000; }
 
 /* After a zma test: thick green where some frame got through the stage, red
    where none did. */
