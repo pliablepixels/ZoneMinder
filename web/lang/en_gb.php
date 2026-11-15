@@ -985,6 +985,7 @@ $SLANG = array(
     'ZoneTestHelp'          => 'Re-runs detection on a recorded event with the settings in this form, saved or not. Nothing is written. Each zone is judged on its own, without Inclusive/Exclusive/Preclusive rules.',
     'ZoneTestNeedSave'      => 'Save the zone once before testing it',
     'ZoneTestNoEvents'      => 'This monitor has no recorded events to test against',
+    'ZoneTestNoVideo'       => 'no replay - this event has no video (JPEG only)',
     'ZoneTestNoZma'         => 'Needs the zma utility, which is not installed',
     'ZoneTestNotDetecting'  => 'This zone is Inactive or Privacy - nothing to test',
     'ZoneTestNotInARow'   => 'never %1 in a row',

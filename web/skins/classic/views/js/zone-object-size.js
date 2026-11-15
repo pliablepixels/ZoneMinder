@@ -897,6 +897,7 @@
       }
     }
     if (t.unknown) parts.push(t.unknown + ' ' + str.testUnknown);
+    if (test.noVideo) parts.push(str.testNoVideo);
     out.appendChild(document.createTextNode(' · ' + parts.join(' · ')));
   }
 
@@ -1020,6 +1021,9 @@
           // The server sends the video for the event it ran, so a pick changed
           // mid-run cannot pair the wrong one.
           if (resp.video && !(panel && panel.style.display === 'none')) openReplay(resp.video);
+          // JPEG-only events have no video: say why there is no replay.
+          test.noVideo = !resp.video;
+          showTestResult();
         })
         .fail(function(jqxhr, textStatus, error) {
           out.textContent = textStatus + (error ? ': ' + error : '');

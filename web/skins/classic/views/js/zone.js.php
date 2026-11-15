@@ -131,7 +131,8 @@ var zoneObjectSizeStrings = {
   'replayGot': '<?php echo addslashes(translate('ZoneReplayGot')) ?>',
   'testQualify': '<?php echo addslashes(translate('ZoneTestQualify')) ?>',
   'testNotInARow': '<?php echo addslashes(translate('ZoneTestNotInARow')) ?>',
-  'testClosest': '<?php echo addslashes(translate('ZoneTestClosest')) ?>'
+  'testClosest': '<?php echo addslashes(translate('ZoneTestClosest')) ?>',
+  'testNoVideo': '<?php echo addslashes(translate('ZoneTestNoVideo')) ?>'
 };
 
 var deleteString = "<?php echo translate('Delete') ?>";
