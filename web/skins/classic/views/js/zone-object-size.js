@@ -235,8 +235,7 @@
   // scored frames in a row: zma.cpp's PREALARM count resets on any miss.
   // alarmFrames: the frame numbers of every run long enough to alarm.
   function tallyVerdicts(frames, alarmFrameCount) {
-    const out = {scored: 0, unknown: 0, wouldAlarm: false, alarmFrames: [],
-      passed: {alarm: 0, filter: 0, blob: 0}};
+    const out = {scored: 0, unknown: 0, wouldAlarm: false, alarmFrames: []};
     const need = Math.max(alarmFrameCount, 1);
     let run = [];
     let prev = null;
@@ -253,10 +252,6 @@
       } else if (run.length > need) {
         out.alarmFrames.push(f.frame);
       }
-      const st = stageResults(v, 3);
-      STAGES.forEach(function(stage) {
-        if (st[stage]) out.passed[stage]++;
-      });
     });
     return out;
   }
@@ -522,9 +517,9 @@
 
   // Threshold rects drawn inside the object box, and the field each is sized by.
   const THRESHOLD_RECTS = [
-    {id: 'objectAlarmRect', field: 'MinAlarmPixels', stage: 'alarm'},
-    {id: 'objectFilterRect', field: 'MinFilterPixels', stage: 'filter'},
-    {id: 'objectBlobRect', field: 'MinBlobPixels', stage: 'blob'},
+    {id: 'objectAlarmRect', field: 'MinAlarmPixels'},
+    {id: 'objectFilterRect', field: 'MinFilterPixels'},
+    {id: 'objectBlobRect', field: 'MinBlobPixels'},
   ];
 
   // The last zma test, re-judged against the form's thresholds as they change.
