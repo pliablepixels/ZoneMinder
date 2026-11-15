@@ -405,11 +405,9 @@ const RAN = {checkMethod: 3, minAlarm: 26131, maxAlarm: 0, minFilter: 18242,
   maxFilter: 0, minBlob: 15613, maxBlob: 0, minBlobs: 1, maxBlobs: 0};
 const with_ = (o) => Object.assign({}, RAN, o);
 // Passes every stage.
-const PASS = {alarm: 144989, filter: 133210, blobs: 3, maxBlob: 37972, largestBlob: 37972,
-  blobSizes: [37972, 20000, 16000, 900]};
+const PASS = {alarm: 144989, filter: 133210, blobs: 3, maxBlob: 37972, largestBlob: 37972};
 // Through filtering, but its only blob was under MinBlobPixels and removed.
-const SMALL = {alarm: 30000, filter: 20000, blobs: 0, maxBlob: 0, largestBlob: 12000,
-  blobSizes: [12000, 40]};
+const SMALL = {alarm: 30000, filter: 20000, blobs: 0, maxBlob: 0, largestBlob: 12000};
 // Short at the first stage, so zma measured nothing after it.
 const QUIET = {alarm: 900, filter: 0, blobs: 0, maxBlob: 0, largestBlob: 0};
 test('unchanged settings give zma\'s own verdict', () => {
@@ -429,14 +427,10 @@ test('a stage zma never reached is unknown, not failed', () => {
   assert.deepStrictEqual(v, {failedAt: null, unknown: 'filter', scored: false});
   assert.strictEqual(ZM.whatIfVerdict(PASS, with_({checkMethod: 1}), RAN).unknown, 'filter');
 });
-test('blobs are recounted for any size limits and count', () => {
-  // 900 counts once MinBlobPixels drops below it: four blobs.
-  assert.strictEqual(ZM.whatIfVerdict(PASS, RAN, with_({minBlob: 100, minBlobs: 4})).scored, true);
+test('blob count after changing blob size is unknown when MinBlobs > 1', () => {
+  assert.strictEqual(ZM.whatIfVerdict(PASS, RAN, with_({minBlob: 100, minBlobs: 2})).unknown, 'blob');
+  // Same blob size: zma's count stands.
   assert.strictEqual(ZM.whatIfVerdict(PASS, RAN, with_({minBlobs: 4})).failedAt, 'blob');
-  // A MaxBlobPixels under the big one leaves two.
-  assert.strictEqual(ZM.whatIfVerdict(PASS, RAN, with_({maxBlob: 30000, minBlobs: 2})).scored, true);
-  assert.strictEqual(ZM.whatIfVerdict(PASS, RAN, with_({maxBlob: 30000, minBlobs: 3})).failedAt, 'blob');
-  assert.strictEqual(ZM.whatIfVerdict(PASS, RAN, with_({maxBlobs: 2})).failedAt, 'blob');
 });
 test('a Max now exceeded fails the stage', () => {
   assert.strictEqual(ZM.whatIfVerdict(PASS, RAN, with_({maxAlarm: 100000})).failedAt, 'alarm');

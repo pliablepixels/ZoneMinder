@@ -183,10 +183,10 @@
   // Would the frame zma measured under `ran` pass under `now`? The counts
   // zma reports do not depend on the Min/Max fields, so those can change
   // without a re-run - except that CheckAlarms stops at the first stage that
-  // fails, so a stage zma never reached was never measured (unknown). Blobs
-  // are recounted from blobSizes, every blob's size before any was removed.
-  // ponytail: ignores overload frames after a Max is exceeded, and zma's
-  // 254-blob limit under a lower MinBlobPixels; re-run for those.
+  // fails, so a stage zma never reached was never measured (unknown). Blob
+  // count depends on Min/MaxBlobPixels, so after changing those only the
+  // largest blob is known, which settles "at least one blob" and nothing more.
+  // ponytail: ignores overload frames after a Max is exceeded; re-run for those.
   function whatIfVerdict(fz, ran, now) {
     let reached = true;
     for (let i = 0; i < Math.max(now.checkMethod, 1); i++) {
@@ -199,11 +199,12 @@
       } else if (stage === 'filter') {
         pass = within(fz.filter, now.minFilter, now.maxFilter);
         reached = within(fz.filter, ran.minFilter, ran.maxFilter);
+      } else if (now.minBlob === ran.minBlob && now.maxBlob === ran.maxBlob) {
+        pass = within(fz.blobs, now.minBlobs, now.maxBlobs);
+      } else if (now.minBlobs <= 1 && !now.maxBlob && !now.maxBlobs) {
+        pass = within(fz.largestBlob, now.minBlob, 0);
       } else {
-        const kept = (fz.blobSizes || []).filter(function(n) {
-          return within(n, now.minBlob, now.maxBlob);
-        }).length;
-        pass = within(kept, now.minBlobs, now.maxBlobs);
+        return {failedAt: null, unknown: stage, scored: false};
       }
       if (!pass) return {failedAt: stage, unknown: null, scored: false};
     }

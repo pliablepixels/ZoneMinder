@@ -747,17 +747,14 @@ int main(int argc, char *argv[]) {
         if (!st.alarm_pixels_) continue;
         const Box &mb = st.motion_box_;
         const Box &bb = st.largest_blob_box_;
-        std::string sizes;
-        for (int size : st.blob_sizes_) sizes += (sizes.empty() ? "" : ",") + std::to_string(size);
         zones_json += stringtf("%s{\"id\":%u,\"alarm\":%u,\"filter\":%d,\"blob\":%d,"
                                "\"blobs\":%d,\"maxBlob\":%d,\"largestBlob\":%d,\"score\":%u,"
-                               "\"motionBox\":[%d,%d,%d,%d],\"blobBox\":[%d,%d,%d,%d],"
-                               "\"blobSizes\":[%s]}",
+                               "\"motionBox\":[%d,%d,%d,%d],\"blobBox\":[%d,%d,%d,%d]}",
                                zones_json.empty() ? "" : ",", zone.Id(), st.alarm_pixels_,
                                st.alarm_filter_pixels_, st.alarm_blob_pixels_, st.alarm_blobs_,
                                st.max_blob_size_, st.largest_blob_, zone.Score(),
                                mb.Lo().x_, mb.Lo().y_, mb.Hi().x_, mb.Hi().y_,
-                               bb.Lo().x_, bb.Lo().y_, bb.Hi().x_, bb.Hi().y_, sizes.c_str());
+                               bb.Lo().x_, bb.Lo().y_, bb.Hi().x_, bb.Hi().y_);
       }
       if (!zones_json.empty()) {
         // t: seconds into the event, the position zma decoded the frame from,
