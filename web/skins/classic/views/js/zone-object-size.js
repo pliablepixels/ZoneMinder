@@ -897,15 +897,19 @@
       command: 'test',
       mid: zone.MonitorId, zid: form.elements['zid'].value, eid: select.value,
     };
+    // Read now: the event picked may change while zma runs.
+    const video = select.options[select.selectedIndex].getAttribute('data-video');
     // zma measures with the form's pixel threshold, filter and blob size, but
     // with every alarmed/filtered limit off and all three stages on, so it
     // measures every stage of every frame instead of stopping at the first
     // that fails. rejudgeTest then applies the form's limits.
+    // MaxBlobs is off too: exceeding it puts zma into overload, and frames lost
+    // to overload cannot be judged again.
     // ponytail: blob size stays on - with none, noise blobs can exhaust
     // CheckAlarms' blob slots; so blob size changes judge from the largest blob.
     const sent = formValues();
     sent.CheckMethod = 'Blobs';
-    ['MinAlarmPixels', 'MaxAlarmPixels', 'MinFilterPixels', 'MaxFilterPixels'].forEach(function(f) {
+    ['MinAlarmPixels', 'MaxAlarmPixels', 'MinFilterPixels', 'MaxFilterPixels', 'MaxBlobs'].forEach(function(f) {
       sent[f] = '0';
     });
     data['newZone[Coords]'] = getCoordString();
@@ -932,12 +936,14 @@
           }
           test = buildTest(resp, data.zid, sent);
           if (!test) {
-            out.textContent = '';
+            // zma leaves out Inactive and Privacy zones: they detect nothing.
+            out.textContent = zoneObjectSizeStrings.testNotDetecting;
             return;
           }
           rejudgeTest();
-          const video = select.options[select.selectedIndex].getAttribute('data-video');
-          if (video) openReplay(video);
+          // Closed while zma ran: its Exit button would be hidden with it.
+          const panel = document.getElementById('zoneTestPanel');
+          if (video && !(panel && panel.style.display === 'none')) openReplay(video);
         })
         .fail(function(jqxhr, textStatus, error) {
           out.textContent = textStatus + (error ? ': ' + error : '');
@@ -1018,7 +1024,9 @@
   }
 
   // label: [above the top-left corner | under the bottom-left one, text].
-  function drawReplayBox(id, box, cls, label) {
+  // parts: [[name, true | false | undefined]] - a green tick, red cross or ?
+  // after each name.
+  function drawReplayBox(id, box, cls, above, parts) {
     const pct = pixelBoxToPercent(box, monitorData[0].width, monitorData[0].height);
     if (!pct) {
       hideRects([id]);
@@ -1028,12 +1036,17 @@
     const r = setRect(id, pct.a, pct.b);
     r.classList.toggle('testPass', cls === 'pass');
     r.classList.toggle('testFail', cls === 'fail');
-    const el = label[0] ? placeLabel(id + 'Label', label[1], pct.a.x, pct.a.y) :
-        placeLabel(id + 'Label', label[1], pct.a.x, pct.b.y);
+    const el = placeLabel(id + 'Label', '', pct.a.x, above ? pct.a.y : pct.b.y);
     if (!el) return;
-    el.classList.toggle('under', !label[0]);
-    el.classList.toggle('testPass', cls === 'pass');
-    el.classList.toggle('testFail', cls === 'fail');
+    el.classList.toggle('under', !above);
+    el.classList.add('replayLabel');
+    parts.forEach(function(p, i) {
+      el.appendChild(document.createTextNode((i ? '  ' : '') + p[0] + ' '));
+      const mark = document.createElement('span');
+      mark.className = p[1] === true ? 'ok' : p[1] === false ? 'bad' : '';
+      mark.textContent = p[1] === true ? '\u2713' : p[1] === false ? '\u2717' : '?';
+      el.appendChild(mark);
+    });
   }
 
   function showReplayFrame() {
@@ -1057,13 +1070,13 @@
         if (vs.indexOf(false) >= 0) return 'fail';
         return vs.indexOf(true) >= 0 && vs.indexOf(undefined) < 0 ? 'pass' : '';
       };
-      const motionStages = test.now.checkMethod >= 2 ? ['alarm', 'filter'] : ['alarm'];
-      let motionText = str.labelMotion + ' · ' + str.replayAlarmed + ': ' + met('alarm');
-      if (test.now.checkMethod >= 2) motionText += ' · ' + str.replayFiltered + ': ' + met('filter');
-      drawReplayBox('replayMotionRect', f.fz.motionBox, tone(motionStages), [true, motionText]);
-      drawReplayBox('replayBlobRect', f.fz.blobBox, test.now.checkMethod >= 3 ? tone(['blob']) : '',
-          [false, str.labelBlob + ' ' + fmt(f.fz.largestBlob) + ' px' +
-            (test.now.checkMethod >= 3 ? ': ' + met('blob') : '')]);
+      const motionParts = [[str.replayAlarmed, replayStages.alarm]];
+      if (test.now.checkMethod >= 2) motionParts.push([str.replayFiltered, replayStages.filter]);
+      drawReplayBox('replayMotionRect', f.fz.motionBox,
+          tone(test.now.checkMethod >= 2 ? ['alarm', 'filter'] : ['alarm']), true, motionParts);
+      const blobOn = test.now.checkMethod >= 3;
+      drawReplayBox('replayBlobRect', f.fz.blobBox, blobOn ? tone(['blob']) : '', false,
+          [[str.labelBlob, blobOn ? replayStages.blob : undefined]]);
       if (info) {
         const parts = [str.replayFrame + ' ' + f.frame];
         const z = test.now;
@@ -1074,7 +1087,7 @@
           parts.push(r[1] + ' ' + fmt(r[2]) + '/' + fmt(r[3]) + ': ' + met(r[0]));
         });
         if (f.verdict.unknown) parts.push(zoneObjectSizeStrings.testUnknownFrame);
-        parts.push(f.inAlarm ? str.replayInAlarm : f.verdict.scored ? str.replayAlarmFrame : str.replayNoAlarm);
+        parts.push(f.inAlarm ? str.replayInAlarm : f.verdict.scored ? str.replayScored : str.replayNoAlarm);
         info.textContent = parts.join(' · ');
       }
     } else {
