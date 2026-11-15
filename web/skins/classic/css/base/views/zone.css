@@ -331,6 +331,10 @@
     margin-right: 0.4em;
     vertical-align: middle;
 }
+/* The minimums and filter size are drawn inside the user setting box, so
+   they sit under it; the frame's outlines start a group of their own. */
+#boxLegend .lgAlarm, #boxLegend .lgFilter, #boxLegend .lgBlob, #boxLegend .lgKernel { margin-left: 1.4em; }
+#boxLegend .lgAlarmBox { margin-top: 0.5em; }
 #boxLegend .lgObject::before { border: 2px solid #ffff00; }
 #boxLegend .lgEstimate::before { border: 2px dashed #ffff00; }
 #boxLegend .lgAlarm::before { background: rgba(255, 165, 0, 0.15); border: 1px solid #ffa500; }
