@@ -1058,11 +1058,17 @@
     el.classList.add('replayLabel');
     parts.forEach(function(p, i) {
       el.appendChild(document.createTextNode((i ? '  ' : '') + p[0] + ' '));
-      const mark = document.createElement('span');
-      mark.className = p[1] === true ? 'ok' : p[1] === false ? 'bad' : '';
-      mark.textContent = p[1] === true ? '\u2713' : p[1] === false ? '\u2717' : '?';
-      el.appendChild(mark);
+      el.appendChild(checkMark(p[1]));
     });
+  }
+
+  // Green tick, red cross, or ? for a check not reached - on the image and in
+  // the frame line alike.
+  function checkMark(v) {
+    const mark = document.createElement('span');
+    mark.className = 'checkMark' + (v === true ? ' ok' : v === false ? ' bad' : '');
+    mark.textContent = v === true ? '\u2713' : v === false ? '\u2717' : '?';
+    return mark;
   }
 
   function showReplayFrame() {
@@ -1075,11 +1081,6 @@
       const replayStages = stageResults(f.verdict, test.now.checkMethod);
       // Green or red per box: the motion box carries the alarmed and filtered
       // counts, the blob box the blob size. Neither means an alarm by itself.
-      // Same marks as the label on the image.
-      const met = function(stage) {
-        const v = replayStages[stage];
-        return v === true ? '\u2713' : v === false ? '\u2717' : '?';
-      };
       const tone = function(stages) {
         const vs = stages.map(function(s) {
           return replayStages[s];
@@ -1096,18 +1097,21 @@
       drawReplayBox('replayBlobRect', f.fz.blobBox,
           test.now.checkMethod >= 3 ? tone(['blob']) : '', null);
       if (info) {
-        const parts = [str.replayFrame + ' ' + f.frame];
         const z = test.now;
+        info.textContent = str.replayFrame + ' ' + f.frame;
+        const add = function(text) {
+          info.appendChild(document.createTextNode(' · ' + text));
+        };
         [['alarm', str.replayAlarmed, f.fz.alarm, z.minAlarm, 1],
           ['filter', str.replayFiltered, f.fz.filter, z.minFilter, 2],
-          ['blob', str.labelBlob, f.fz.largestBlob, z.minBlob, 3]].forEach(function(r) {
+          ['blob', str.replayBlob, f.fz.largestBlob, z.minBlob, 3]].forEach(function(r) {
           if (z.checkMethod < r[4] || replayStages[r[0]] === undefined) return;
-          parts.push(r[1] + ' ' + fmt(r[2]) + '/' + fmt(r[3]) + ' ' + met(r[0]));
+          add(r[1] + ' ' + fmt(r[2]) + '/' + fmt(r[3]) + ' ');
+          info.appendChild(checkMark(replayStages[r[0]]));
         });
-        if (f.verdict.unknown) parts.push(zoneObjectSizeStrings.testUnknownFrame);
+        if (f.verdict.unknown) add(zoneObjectSizeStrings.testUnknownFrame);
         // A failed check already shows as a cross; say only what passing adds.
-        if (f.verdict.scored) parts.push(f.inAlarm ? str.replayInAlarm : str.replayScored);
-        info.textContent = parts.join(' · ');
+        if (f.verdict.scored) add(f.inAlarm ? str.replayInAlarm : str.replayScored);
       }
     } else {
       hideRects(['replayMotionRect', 'replayBlobRect']);

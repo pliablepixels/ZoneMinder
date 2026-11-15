@@ -946,7 +946,6 @@ $SLANG = array(
     'ZoneMinMaxFiltArea'    => 'Min/Max Filtered Area',
     'ZoneMinMaxPixelThres'  => 'Min/Max Pixel Threshold (0-255)',
     'ZoneOverloadFrames'    => 'Overload Frame Ignore Count',
-    'ZoneLabelBlob'         => 'largest blob',
     'ZoneLabelEstimate'     => 'estimate',
     'ZoneLabelObject'       => 'object',
     'ZoneLegendAlarm'     => 'min alarmed area, to scale - this much of the box has to change',

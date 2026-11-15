@@ -336,8 +336,12 @@
 
 /* Labels on zma's boxes, coloured like the box. */
 #imageFrame .boxLabel.replayLabel { color: #ffffff; white-space: pre; }
-#imageFrame .boxLabel .ok { color: #40ff40; font-weight: bold; }
-#imageFrame .boxLabel .bad { color: #ff5050; font-weight: bold; }
+/* On a dark chip everywhere, so the bright tick and cross read on the light
+   page as on the image. */
+.checkMark { font-weight: bold; }
+.checkMark.ok { color: #40ff40; }
+.checkMark.bad { color: #ff5050; }
+#replayFrameInfo .checkMark { padding: 0 3px; border-radius: 2px; background: rgba(0, 0, 0, 0.65); }
 /* The live stream's "Paused" text, while the recording plays over it. */
 .replaying [id^="stream-info-block"] { display: none; }
 
